@@ -1,0 +1,53 @@
+import { ArrowDown, MessageCircle } from "lucide-react";
+
+const HeroSection = () => {
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Mesh gradient background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-ps-blue/20 blur-[120px] animate-mesh-1" />
+        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] rounded-full bg-ps-violet/15 blur-[120px] animate-mesh-2" />
+        <div className="absolute bottom-1/4 left-1/3 w-[450px] h-[450px] rounded-full bg-ps-green/10 blur-[120px] animate-mesh-3" />
+      </div>
+
+      <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
+        {/* Logo */}
+        <h1 className="font-heading text-6xl md:text-8xl font-bold mb-8 tracking-tight">
+          <span className="text-ps-blue">PS</span>
+          <span className="text-ps-green">hub</span>
+        </h1>
+
+        {/* Tagline */}
+        <p className="font-heading text-xl md:text-2xl lg:text-3xl font-semibold text-foreground max-w-3xl mx-auto mb-4 leading-tight">
+          O ecossistema completo de saúde psicossocial e compliance para sua empresa.
+        </p>
+
+        {/* Subtítulo */}
+        <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
+          Avalie riscos, acolha denúncias e desenvolva uma cultura organizacional saudável — em uma única plataforma integrada.
+        </p>
+
+        {/* CTAs */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a
+            href="#pilares"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-heading font-semibold text-white text-base transition-all duration-300 hover:brightness-110 hover:scale-105"
+            style={{ background: "linear-gradient(135deg, #0C1BC9, #00D857)" }}
+          >
+            Conhecer os Pilares
+            <ArrowDown size={18} />
+          </a>
+          <a
+            href="#cta"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-heading font-semibold text-ps-green text-base border-2 border-ps-green/60 transition-all duration-300 hover:bg-ps-green/10 hover:border-ps-green hover:scale-105"
+          >
+            <MessageCircle size={18} />
+            Falar com um especialista
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default HeroSection;
