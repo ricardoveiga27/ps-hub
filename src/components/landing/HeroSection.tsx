@@ -1,4 +1,5 @@
 import { ArrowDown, MessageCircle } from "lucide-react";
+import logo from "@/assets/Logotipo_pshub.png";
 
 const HeroSection = () => {
   return (
@@ -12,10 +13,7 @@ const HeroSection = () => {
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
         {/* Logo */}
-        <h1 className="font-heading text-6xl md:text-8xl font-bold mb-8 tracking-tight">
-          <span className="text-ps-blue">PS</span>
-          <span className="text-ps-green">hub</span>
-        </h1>
+        <img src={logo} alt="PS Hub - Gestão de Risco Psicossocial" className="h-20 md:h-28 mx-auto mb-8" />
 
         {/* Tagline */}
         <p className="font-heading text-xl md:text-2xl lg:text-3xl font-semibold text-foreground max-w-3xl mx-auto mb-4 leading-tight">
