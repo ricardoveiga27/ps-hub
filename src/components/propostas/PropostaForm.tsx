@@ -34,10 +34,11 @@ interface PropostaFormProps {
   onSubmit: (values: PropostaFormValues) => void;
   loading?: boolean;
   defaultValues?: Partial<PropostaFormValues>;
+  lockedClienteId?: string;
 }
 
 export default function PropostaForm({
-  open, onOpenChange, onSubmit, loading, defaultValues,
+  open, onOpenChange, onSubmit, loading, defaultValues, lockedClienteId,
 }: PropostaFormProps) {
   const { data: clientes } = useClientes();
 
@@ -107,9 +108,9 @@ export default function PropostaForm({
             <FormField control={form.control} name="cliente_id" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-white/70">Cliente</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={!!lockedClienteId}>
                   <FormControl>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                    <SelectTrigger className={`bg-white/5 border-white/10 text-white ${lockedClienteId ? "opacity-60 cursor-not-allowed" : ""}`}>
                       <SelectValue placeholder="Selecione o cliente" />
                     </SelectTrigger>
                   </FormControl>
