@@ -14,7 +14,671 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      crm_asaas_config: {
+        Row: {
+          api_key: string
+          created_at: string
+          environment: string
+          id: string
+          is_active: boolean
+          nfse_enabled: boolean
+          nome: string
+          wallet_id: string | null
+          webhook_token: string | null
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          nfse_enabled?: boolean
+          nome?: string
+          wallet_id?: string | null
+          webhook_token?: string | null
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          nfse_enabled?: boolean
+          nome?: string
+          wallet_id?: string | null
+          webhook_token?: string | null
+        }
+        Relationships: []
+      }
+      crm_asaas_customers: {
+        Row: {
+          asaas_customer_id: string
+          cliente_id: string
+          cpf_cnpj: string | null
+          email: string | null
+          id: string
+          name: string | null
+          synchronized_at: string
+        }
+        Insert: {
+          asaas_customer_id: string
+          cliente_id: string
+          cpf_cnpj?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          synchronized_at?: string
+        }
+        Update: {
+          asaas_customer_id?: string
+          cliente_id?: string
+          cpf_cnpj?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          synchronized_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_asaas_customers_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_assinaturas: {
+        Row: {
+          asaas_customer_id: string | null
+          cliente_id: string
+          contrato_id: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          dia_vencimento: number
+          id: string
+          proximo_reajuste_em: string | null
+          status: string
+          ultimo_reajuste_em: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          asaas_customer_id?: string | null
+          cliente_id: string
+          contrato_id: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio: string
+          dia_vencimento: number
+          id?: string
+          proximo_reajuste_em?: string | null
+          status?: string
+          ultimo_reajuste_em?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          asaas_customer_id?: string | null
+          cliente_id?: string
+          contrato_id?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          dia_vencimento?: number
+          id?: string
+          proximo_reajuste_em?: string | null
+          status?: string
+          ultimo_reajuste_em?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_assinaturas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_assinaturas_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_clientes: {
+        Row: {
+          cidade: string | null
+          cnpj: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nome_fantasia: string | null
+          observacoes: string | null
+          porte: string | null
+          razao_social: string
+          responsavel_comercial: string | null
+          segmento: string | null
+          status: string
+          telefone: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          porte?: string | null
+          razao_social: string
+          responsavel_comercial?: string | null
+          segmento?: string | null
+          status?: string
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          porte?: string | null
+          razao_social?: string
+          responsavel_comercial?: string | null
+          segmento?: string | null
+          status?: string
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_contatos: {
+        Row: {
+          ativo: boolean
+          cargo: string | null
+          celular: string | null
+          cliente_id: string
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+          principal: boolean
+          telefone: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          cargo?: string | null
+          celular?: string | null
+          cliente_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome: string
+          principal?: boolean
+          telefone?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cargo?: string | null
+          celular?: string | null
+          cliente_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          principal?: boolean
+          telefone?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contatos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_contratos: {
+        Row: {
+          cliente_id: string
+          codigo_contrato: string | null
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          data_proximo_reajuste: string | null
+          dia_vencimento: number
+          id: string
+          indice_reajuste: string
+          observacoes: string | null
+          percentual_reajuste_fixo: number | null
+          proposta_id: string | null
+          ps_cultura_ativo: boolean
+          ps_escuta_ativo: boolean
+          ps_index_ativo: boolean
+          status: string
+          updated_at: string
+          valor_mensal: number
+          vidas: number
+        }
+        Insert: {
+          cliente_id: string
+          codigo_contrato?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio: string
+          data_proximo_reajuste?: string | null
+          dia_vencimento: number
+          id?: string
+          indice_reajuste?: string
+          observacoes?: string | null
+          percentual_reajuste_fixo?: number | null
+          proposta_id?: string | null
+          ps_cultura_ativo?: boolean
+          ps_escuta_ativo?: boolean
+          ps_index_ativo?: boolean
+          status?: string
+          updated_at?: string
+          valor_mensal: number
+          vidas: number
+        }
+        Update: {
+          cliente_id?: string
+          codigo_contrato?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          data_proximo_reajuste?: string | null
+          dia_vencimento?: number
+          id?: string
+          indice_reajuste?: string
+          observacoes?: string | null
+          percentual_reajuste_fixo?: number | null
+          proposta_id?: string | null
+          ps_cultura_ativo?: boolean
+          ps_escuta_ativo?: boolean
+          ps_index_ativo?: boolean
+          status?: string
+          updated_at?: string
+          valor_mensal?: number
+          vidas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contratos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "crm_propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_faturas: {
+        Row: {
+          asaas_customer_id: string | null
+          asaas_payment_id: string | null
+          assinatura_id: string
+          boleto_url: string | null
+          cliente_id: string
+          created_at: string
+          data_emissao: string | null
+          data_vencimento: string
+          descricao: string
+          id: string
+          invoice_url: string | null
+          numero_fatura: string | null
+          periodo_referencia: string | null
+          pix_copy_paste: string | null
+          pix_qr_code: string | null
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          asaas_customer_id?: string | null
+          asaas_payment_id?: string | null
+          assinatura_id: string
+          boleto_url?: string | null
+          cliente_id: string
+          created_at?: string
+          data_emissao?: string | null
+          data_vencimento: string
+          descricao?: string
+          id?: string
+          invoice_url?: string | null
+          numero_fatura?: string | null
+          periodo_referencia?: string | null
+          pix_copy_paste?: string | null
+          pix_qr_code?: string | null
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          asaas_customer_id?: string | null
+          asaas_payment_id?: string | null
+          assinatura_id?: string
+          boleto_url?: string | null
+          cliente_id?: string
+          created_at?: string
+          data_emissao?: string | null
+          data_vencimento?: string
+          descricao?: string
+          id?: string
+          invoice_url?: string | null
+          numero_fatura?: string | null
+          periodo_referencia?: string | null
+          pix_copy_paste?: string | null
+          pix_qr_code?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_faturas_assinatura_id_fkey"
+            columns: ["assinatura_id"]
+            isOneToOne: false
+            referencedRelation: "crm_assinaturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_faturas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_notas_fiscais: {
+        Row: {
+          asaas_invoice_id: string | null
+          cliente_id: string
+          codigo_verificacao: string | null
+          created_at: string
+          data_emissao: string | null
+          fatura_id: string
+          id: string
+          numero_nfse: string | null
+          pdf_url: string | null
+          status: string | null
+          valor: number | null
+          xml_url: string | null
+        }
+        Insert: {
+          asaas_invoice_id?: string | null
+          cliente_id: string
+          codigo_verificacao?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          fatura_id: string
+          id?: string
+          numero_nfse?: string | null
+          pdf_url?: string | null
+          status?: string | null
+          valor?: number | null
+          xml_url?: string | null
+        }
+        Update: {
+          asaas_invoice_id?: string | null
+          cliente_id?: string
+          codigo_verificacao?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          fatura_id?: string
+          id?: string
+          numero_nfse?: string | null
+          pdf_url?: string | null
+          status?: string | null
+          valor?: number | null
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notas_fiscais_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_notas_fiscais_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: true
+            referencedRelation: "crm_faturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_propostas: {
+        Row: {
+          aceita_em: string | null
+          cliente_id: string
+          created_at: string
+          desconto_tipo: string | null
+          desconto_valor: number | null
+          enviada_em: string | null
+          id: string
+          motivo_recusa: string | null
+          numero_proposta: string | null
+          observacoes: string | null
+          recusada_em: string | null
+          snapshot_condicoes: Json | null
+          status: string
+          titulo: string | null
+          updated_at: string
+          validade_dias: number
+          valor_final: number
+          valor_mensal: number
+          vidas: number
+        }
+        Insert: {
+          aceita_em?: string | null
+          cliente_id: string
+          created_at?: string
+          desconto_tipo?: string | null
+          desconto_valor?: number | null
+          enviada_em?: string | null
+          id?: string
+          motivo_recusa?: string | null
+          numero_proposta?: string | null
+          observacoes?: string | null
+          recusada_em?: string | null
+          snapshot_condicoes?: Json | null
+          status?: string
+          titulo?: string | null
+          updated_at?: string
+          validade_dias?: number
+          valor_final: number
+          valor_mensal: number
+          vidas: number
+        }
+        Update: {
+          aceita_em?: string | null
+          cliente_id?: string
+          created_at?: string
+          desconto_tipo?: string | null
+          desconto_valor?: number | null
+          enviada_em?: string | null
+          id?: string
+          motivo_recusa?: string | null
+          numero_proposta?: string | null
+          observacoes?: string | null
+          recusada_em?: string | null
+          snapshot_condicoes?: Json | null
+          status?: string
+          titulo?: string | null
+          updated_at?: string
+          validade_dias?: number
+          valor_final?: number
+          valor_mensal?: number
+          vidas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_propostas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_reajustes: {
+        Row: {
+          aplicado_em: string
+          assinatura_id: string
+          contrato_id: string
+          id: string
+          indice: string | null
+          observacao: string | null
+          percentual_aplicado: number | null
+          valor_anterior: number | null
+          valor_novo: number | null
+        }
+        Insert: {
+          aplicado_em?: string
+          assinatura_id: string
+          contrato_id: string
+          id?: string
+          indice?: string | null
+          observacao?: string | null
+          percentual_aplicado?: number | null
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Update: {
+          aplicado_em?: string
+          assinatura_id?: string
+          contrato_id?: string
+          id?: string
+          indice?: string | null
+          observacao?: string | null
+          percentual_aplicado?: number | null
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_reajustes_assinatura_id_fkey"
+            columns: ["assinatura_id"]
+            isOneToOne: false
+            referencedRelation: "crm_assinaturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_reajustes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_webhook_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string | null
+          processing_notes: string | null
+          received_at: string
+        }
+        Insert: {
+          event_type: string
+          id: string
+          payload: Json
+          processed_at?: string | null
+          processing_notes?: string | null
+          received_at?: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          processing_notes?: string | null
+          received_at?: string
+        }
+        Relationships: []
+      }
+      licencas_ativas: {
+        Row: {
+          cliente_id: string
+          cnpj: string
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          ps_cultura_ativo: boolean
+          ps_escuta_ativo: boolean
+          ps_index_ativo: boolean
+          razao_social: string | null
+          status_assinatura: string | null
+          updated_at: string
+          vidas: number | null
+        }
+        Insert: {
+          cliente_id: string
+          cnpj: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          ps_cultura_ativo?: boolean
+          ps_escuta_ativo?: boolean
+          ps_index_ativo?: boolean
+          razao_social?: string | null
+          status_assinatura?: string | null
+          updated_at?: string
+          vidas?: number | null
+        }
+        Update: {
+          cliente_id?: string
+          cnpj?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          ps_cultura_ativo?: boolean
+          ps_escuta_ativo?: boolean
+          ps_index_ativo?: boolean
+          razao_social?: string | null
+          status_assinatura?: string | null
+          updated_at?: string
+          vidas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licencas_ativas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
