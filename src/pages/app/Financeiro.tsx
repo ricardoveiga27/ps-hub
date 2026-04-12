@@ -1,21 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet } from "lucide-react";
+import { useState } from "react";
+import { useFaturas, type FaturaFilters } from "@/hooks/useFaturas";
+import FinanceiroResumo from "@/components/financeiro/FinanceiroResumo";
+import FaturasList from "@/components/financeiro/FaturasList";
 
 export default function Financeiro() {
+  const [filters, setFilters] = useState<FaturaFilters>({});
+  const { data: faturas = [], isLoading } = useFaturas(filters);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-heading font-bold text-white">Financeiro</h1>
-      <Card className="border-white/10 bg-white/5">
-        <CardHeader>
-          <CardTitle className="text-white/70 flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
-            Gestão Financeira
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-white/40">Faturas, NFS-e e webhooks serão implementados na próxima fase.</p>
-        </CardContent>
-      </Card>
+      <FinanceiroResumo faturas={faturas} />
+      <FaturasList
+        faturas={faturas}
+        isLoading={isLoading}
+        filters={filters}
+        onFilterChange={setFilters}
+      />
     </div>
   );
 }
