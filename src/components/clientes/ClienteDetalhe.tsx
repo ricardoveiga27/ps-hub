@@ -274,13 +274,26 @@ export default function ClienteDetalhePage() {
                 {!contratos?.length ? (
                   <TableRow><TableCell colSpan={5} className="text-center text-white/40 py-8">Nenhum contrato</TableCell></TableRow>
                 ) : contratos.map((c) => (
-                  <TableRow key={c.id} className="border-white/10">
-                    <TableCell className="text-white/60 font-mono text-xs">{c.codigo_contrato ?? "—"}</TableCell>
-                    <TableCell className="text-white/60">{c.vidas}</TableCell>
-                    <TableCell className="text-white/60">{formatCurrency(c.valor_mensal)}</TableCell>
-                    <TableCell><Badge className={c.status === "ativo" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/60"}>{c.status}</Badge></TableCell>
-                    <TableCell className="text-white/60">{formatDate(c.data_inicio)}</TableCell>
-                  </TableRow>
+                  <TableRow
+                    key={c.id}
+                    className="border-white/10 cursor-pointer hover:bg-white/5"
+                    onClick={() => navigate(`/app/contratos/${c.id}`)}
+                  >
+                     <TableCell className="text-white/60 font-mono text-xs">{c.codigo_contrato ?? "—"}</TableCell>
+                     <TableCell className="text-white/60">{c.vidas}</TableCell>
+                     <TableCell className="text-white/60">{formatCurrency(c.valor_mensal)}</TableCell>
+                     <TableCell>
+                       <div className="flex items-center gap-2">
+                         <Badge className={c.status === "ativo" ? "bg-emerald-500/20 text-emerald-400" : c.status === "cancelado" ? "bg-red-500/20 text-red-400" : "bg-white/10 text-white/60"}>{c.status}</Badge>
+                         <div className="flex gap-1">
+                           {c.ps_index_ativo && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#3B82F6" }} title="PS Index" />}
+                           {c.ps_escuta_ativo && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#8B5CF6" }} title="PS Escuta" />}
+                           {c.ps_cultura_ativo && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#10B981" }} title="PS Cultura" />}
+                         </div>
+                       </div>
+                     </TableCell>
+                     <TableCell className="text-white/60">{formatDate(c.data_inicio)}</TableCell>
+                   </TableRow>
                 ))}
               </TableBody>
             </Table>
