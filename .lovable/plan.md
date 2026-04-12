@@ -1,93 +1,81 @@
 
 
-# Integração Asaas — 5 Edge Functions + UI Financeiro (Revisado)
+# Módulo Financeiro Completo — Assinaturas + Fila de Aprovação + NFS-e Automática
 
 ## Resumo
 
-Criar 5 Edge Functions Deno para integração com a API Asaas e adicionar botões de ação na UI do módulo Financeiro.
+3 entregas: nova página de Assinaturas, fila de aprovação de faturas no Financeiro, e automação NFS-e no webhook.
 
 ---
 
-## CORS — Regra Global
+## 1. Página /app/assinaturas
 
-Todas as Edge Functions definem CORS headers inline, sem import externo:
+### `src/hooks/useAssinaturas.ts` (novo)
+- `useAssinaturas()` — lista com join `crm_clientes(razao_social, nome_fantasia)` e `crm_contratos(codigo_contrato, ps_index_ativo, ps_escuta_ativo, ps_cultura_ativo)`
+- `useUpdateAssinatura()` — mutation que atualiza `crm_assinaturas` (vidas, valor) E também `crm_contratos.vidas` e `crm_contratos.valor_mensal` do contrato vinculado (sequencial)
 
-```typescript
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-```
+### `src/pages/app/Assinaturas.tsx` (novo)
+- Tabela: Cliente, Contrato, Vidas, Valor Mensal, Dia Vencimento, Próximo Reajuste, Status
+- Badges: ACTIVE (verde), SUSPENDED (amarelo), CANCELED (cinza)
+- Dots coloridos dos produtos (Index azul, Escuta roxo, Cultura verde) do contrato
+- Botão "Editar" → Dialog com campos vidas (number) e valor (R$), salva nos dois locais
 
-Exceção: `pshub-webhook` inclui `asaas-webhook-token` no allow-headers:
+### `src/App.tsx` — rota `/app/assinaturas`
 
-```typescript
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, asaas-webhook-token',
-}
-```
-
-Todas as respostas (sucesso e erro) incluem `...corsHeaders`. OPTIONS retorna 200 com corsHeaders.
+### `src/components/app/AppSidebar.tsx` — item "Assinaturas" com ícone `Repeat` entre Contratos e Financeiro
 
 ---
 
-## Padrão Comum (todas as funções)
+## 2. Fila de aprovação no Financeiro
 
-- `SUPABASE_SERVICE_ROLE_KEY` para operações internas
-- Base URL: `https://api-sandbox.asaas.com/v3`
-- Headers Asaas: `access_token: config.api_key`, `User-Agent: PSHub-Veiga`
-- Buscar `api_key` de `crm_asaas_config` onde `is_active = true`
-- Try/catch com console.error
+### `src/hooks/useFaturas.ts` — adicionar:
+- `useFaturasPendentes()` — faturas com status `PENDENTE_APROVACAO`, join `crm_clientes(razao_social, nome_fantasia)` e join em `crm_assinaturas(vidas)` via `assinatura_id`
+- `useAprovarFatura()` — mutation sequencial: `pshub-sync-asaas-customer` → `pshub-create-payment`, invalida queries
 
----
+### `src/components/financeiro/FilaAprovacao.tsx` (novo)
+- Card com badge de contagem ("N faturas aguardando aprovação")
+- Tabela: Cliente, Vidas, Valor, Vencimento, Período
+- Botão "Aprovar" por linha (loading + toast)
+- Botão "Editar Vidas" por linha → Dialog com campo vidas (number) e campo valor (editável, pré-calculado proporcionalmente: `novo_valor = (novas_vidas / vidas_atuais) * valor_atual`). O operador pode sobrescrever o valor antes de salvar.
+- Ao salvar: atualiza `crm_assinaturas.vidas` e `crm_faturas.vidas` + `crm_faturas.valor`
 
-## Edge Functions
+### `src/pages/app/Financeiro.tsx` — `FilaAprovacao` acima do resumo, sempre visível
 
-### 1. `supabase/functions/pshub-sync-asaas-customer/index.ts`
-- POST `{ clienteId }` → busca cliente, verifica existência em `crm_asaas_customers`
-- Novo: POST `/customers`; existente: PUT `/customers/{id}`
-- Upsert em `crm_asaas_customers`, retorna `{ success, asaas_customer_id }`
-
-### 2. `supabase/functions/pshub-create-payment/index.ts`
-- POST `{ faturaId }` → busca fatura + cliente, busca `asaas_customer_id`
-- Erro se cliente não sincronizado
-- POST `/payments` com `billingType: 'UNDEFINED'`, `externalReference: fatura.id`
-- Atualiza `crm_faturas` com `asaas_payment_id`, `boleto_url`, `pix_qr_code`, `pix_copy_paste`, `invoice_url`
-
-### 3. `supabase/functions/pshub-webhook/index.ts`
-- POST público, valida `asaas-webhook-token` contra `crm_asaas_config.webhook_token`
-- Persiste em `crm_webhook_events` antes de processar
-- Ignora payments com `subscription` preenchido
-- Trata: PAYMENT_RECEIVED/CONFIRMED → RECEIVED, PAYMENT_OVERDUE → OVERDUE, PAYMENT_DELETED/REFUNDED → CANCELLED, INVOICE_AUTHORIZED → EMITIDA + pdf_url/numero_nfse, INVOICE_ERROR → ERRO
-- Marca `processed_at`, sempre retorna 200
-
-### 4. `supabase/functions/pshub-emit-nfse/index.ts`
-- POST `{ faturaId }` → valida status RECEIVED, sem nota existente
-- POST `/invoices` no Asaas, insere em `crm_notas_fiscais` com status PROCESSING
-
-### 5. `supabase/functions/pshub-generate-monthly-invoices/index.ts`
-- POST sem body (cron), busca assinaturas ACTIVE com `dia_vencimento = dia_atual`
-- Verifica duplicidade por `assinatura_id` + `periodo_referencia`, insere com status PENDING
+### `FaturasList.tsx` e `FaturaDetalhe.tsx` — adicionar `PENDENTE_APROVACAO` ao statusMap (âmbar/laranja, label "Aguardando Aprovação")
 
 ---
 
-## Alterações na UI
+## 3. Webhook — NFS-e automática
 
-### `src/components/financeiro/FaturasList.tsx`
-- Coluna "Ações" com botão "Sincronizar" (chama sync-customer → create-payment em sequência) e "Emitir NF" (habilitado se status = RECEIVED)
-- Loading states e toasts, stopPropagation para não abrir detalhe
+### `supabase/functions/pshub-webhook/index.ts`
+- No bloco `PAYMENT_RECEIVED/PAYMENT_CONFIRMED`, após atualizar status para RECEIVED:
+  - Select a fatura atualizada pelo `asaas_payment_id` para obter o `id`
+  - Chamar `pshub-emit-nfse` via `fetch()` interno:
+    ```
+    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/pshub-emit-nfse`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ faturaId })
+    })
+    ```
+  - Try/catch — se falhar, apenas logar, não bloquear retorno 200
 
-### `src/components/financeiro/FaturaDetalhe.tsx`
-- Mesmos botões "Sincronizar com Asaas" e "Emitir NF" no dialog
-- Links de boleto/PIX já exibidos — sem alteração nessa seção
+---
+
+## 4. Geração mensal — ajustes
+
+### `supabase/functions/pshub-generate-monthly-invoices/index.ts`
+- Alterar select para incluir `vidas` da assinatura
+- Status de inserção: `PENDENTE_APROVACAO` (não `PENDING`)
+- Copiar `vidas` para `crm_faturas.vidas`
 
 ---
 
 ## Detalhes técnicos
 
-- Invocação via `supabase.functions.invoke('pshub-...', { body })`
-- Webhook não exige JWT — validação por token customizado
-- Sem migração de banco — todas as tabelas já existem
-- Botão "Sincronizar" executa sequencialmente com tratamento de erro entre passos
+- Badge `PENDENTE_APROVACAO`: `bg-amber-500/20 text-amber-300 border-amber-500/30`, label "Aguardando Aprovação"
+- Filtro de status no `FaturasList` ganha opção "Aguardando Aprovação"
+- Dark theme consistente (bg-white/5, text-white, border-white/10)
+- Sem migração de banco — todas as tabelas e campos já existem
+- 9 arquivos criados/editados
 
