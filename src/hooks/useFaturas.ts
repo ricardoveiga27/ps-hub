@@ -45,7 +45,6 @@ export function useFaturas(filters: FaturaFilters = {}) {
 
 export type FaturaPendente = Tables<"crm_faturas"> & {
   crm_clientes: { razao_social: string; nome_fantasia: string | null } | null;
-  crm_assinaturas: { vidas: number } | null;
 };
 
 export function useFaturasPendentes() {
@@ -54,7 +53,7 @@ export function useFaturasPendentes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_faturas")
-        .select("*, crm_clientes(razao_social, nome_fantasia), crm_assinaturas:crm_assinaturas!crm_faturas_assinatura_id_fkey(vidas:crm_contratos(vidas))")
+        .select("*, crm_clientes(razao_social, nome_fantasia)")
         .eq("status", "PENDENTE_APROVACAO")
         .order("data_vencimento", { ascending: true });
       if (error) throw error;
