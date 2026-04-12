@@ -11,6 +11,7 @@ import Dashboard from "./pages/app/Dashboard.tsx";
 import Clientes from "./pages/app/Clientes.tsx";
 import ClienteDetalhe from "./pages/app/ClienteDetalhe.tsx";
 import Propostas from "./pages/app/Propostas.tsx";
+import PropostaDetalhe from "./pages/app/PropostaDetalhe.tsx";
 import Contratos from "./pages/app/Contratos.tsx";
 import Financeiro from "./pages/app/Financeiro.tsx";
 import Configuracoes from "./pages/app/Configuracoes.tsx";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="clientes" element={<Clientes />} />
             <Route path="clientes/:id" element={<ClienteDetalhe />} />
             <Route path="propostas" element={<Propostas />} />
+            <Route path="propostas/:id" element={<PropostaDetalhe />} />
             <Route path="contratos" element={<Contratos />} />
             <Route path="financeiro" element={<Financeiro />} />
             <Route path="configuracoes" element={<Configuracoes />} />
