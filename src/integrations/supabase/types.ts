@@ -356,6 +356,7 @@ export type Database = {
           status: string
           updated_at: string
           valor: number
+          vidas: number | null
         }
         Insert: {
           asaas_customer_id?: string | null
@@ -376,6 +377,7 @@ export type Database = {
           status?: string
           updated_at?: string
           valor: number
+          vidas?: number | null
         }
         Update: {
           asaas_customer_id?: string | null
@@ -396,6 +398,7 @@ export type Database = {
           status?: string
           updated_at?: string
           valor?: number
+          vidas?: number | null
         }
         Relationships: [
           {
