@@ -70,6 +70,34 @@ Deno.serve(async (req) => {
           .from("crm_faturas")
           .update({ status: "RECEIVED" })
           .eq("asaas_payment_id", asaasPaymentId);
+
+        // Auto-emit NFS-e
+        try {
+          const { data: faturaAtualizada } = await supabase
+            .from("crm_faturas")
+            .select("id")
+            .eq("asaas_payment_id", asaasPaymentId)
+            .maybeSingle();
+
+          if (faturaAtualizada) {
+            const nfseResp = await fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/pshub-emit-nfse`,
+              {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ faturaId: faturaAtualizada.id }),
+              },
+            );
+            const nfseData = await nfseResp.json();
+            notes += ` | NFS-e: ${nfseData.success ? "triggered" : nfseData.error || "failed"}`;
+          }
+        } catch (nfseErr) {
+          console.error("Auto NFS-e emission failed", nfseErr);
+          notes += " | NFS-e: error (non-blocking)";
+        }
       } else if (eventType === "PAYMENT_OVERDUE") {
         await supabase
           .from("crm_faturas")

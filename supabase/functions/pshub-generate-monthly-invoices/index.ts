@@ -22,10 +22,10 @@ Deno.serve(async (req) => {
     const anoAtual = now.getFullYear();
     const periodoReferencia = `${mesAtual}/${anoAtual}`;
 
-    // Fetch active subscriptions due today
+    // Fetch active subscriptions due today — include vidas
     const { data: assinaturas, error: assErr } = await supabase
       .from("crm_assinaturas")
-      .select("id, cliente_id, contrato_id, valor, dia_vencimento")
+      .select("id, cliente_id, contrato_id, valor, dia_vencimento, vidas:crm_contratos(vidas)")
       .eq("status", "ACTIVE")
       .eq("dia_vencimento", diaAtual);
 
@@ -53,13 +53,17 @@ Deno.serve(async (req) => {
       // Calculate due date
       const dueDate = `${anoAtual}-${mesAtual}-${String(ass.dia_vencimento).padStart(2, "0")}`;
 
+      // Get vidas from joined contrato
+      const vidasValue = Array.isArray(ass.vidas) ? ass.vidas[0]?.vidas : (ass.vidas as any)?.vidas;
+
       const { error: insErr } = await supabase.from("crm_faturas").insert({
         assinatura_id: ass.id,
         cliente_id: ass.cliente_id,
         valor: ass.valor,
+        vidas: vidasValue ?? null,
         data_vencimento: dueDate,
         data_emissao: now.toISOString().split("T")[0],
-        status: "PENDING",
+        status: "PENDENTE_APROVACAO",
         descricao: "Licença PS Hub",
         periodo_referencia: periodoReferencia,
       });

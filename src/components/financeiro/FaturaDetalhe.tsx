@@ -32,6 +32,7 @@ interface Props {
 }
 
 const statusMap: Record<string, { label: string; className: string }> = {
+  PENDENTE_APROVACAO: { label: "Aguardando Aprovação", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
   PENDING: { label: "Pendente", className: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
   RECEIVED: { label: "Recebido", className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
   OVERDUE: { label: "Vencido", className: "bg-red-500/20 text-red-300 border-red-500/30" },

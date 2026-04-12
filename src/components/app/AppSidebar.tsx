@@ -3,6 +3,7 @@ import {
   Building2,
   FileText,
   ScrollText,
+  Repeat,
   Wallet,
   Settings,
   LogOut,
@@ -30,6 +31,7 @@ const menuItems = [
   { title: "Clientes", url: "/app/clientes", icon: Building2 },
   { title: "Propostas", url: "/app/propostas", icon: FileText },
   { title: "Contratos", url: "/app/contratos", icon: ScrollText },
+  { title: "Assinaturas", url: "/app/assinaturas", icon: Repeat },
   { title: "Financeiro", url: "/app/financeiro", icon: Wallet },
   { title: "Configurações", url: "/app/configuracoes", icon: Settings },
 ];
