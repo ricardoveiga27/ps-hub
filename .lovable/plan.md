@@ -1,56 +1,47 @@
 
 
-# Fase 6 — Módulo Financeiro (Revisado)
+# Fase 7 — Dashboard + Configurações (Revisado)
 
 ## Resumo
 
-Substituir o placeholder do Financeiro por módulo completo com cards de resumo, listagem de faturas com filtros (período, status, busca), detalhamento individual e exportação CSV.
+Substituir os dois últimos placeholders por módulos funcionais: Dashboard com KPIs reais e gráficos, e Configurações para gerenciar a integração Asaas.
 
-## Arquivos a criar
+---
 
-### 1. `src/hooks/useFaturas.ts`
-- `useFaturas(filters)` — lista faturas com join em `crm_clientes(razao_social, nome_fantasia)`, filtros por status, período (`data_vencimento` entre datas), busca por número ou cliente
-- `useUpdateFatura()` — mutation para marcar como paga/cancelada
-- Tipos: `FaturaFilters { status, dataInicio, dataFim, busca }`
+## Parte 1: Dashboard
 
-### 2. `src/components/financeiro/FinanceiroResumo.tsx`
-- 4 cards: Total Faturado, Recebido, Pendente, Vencido
-- **Recebe o array de faturas já filtrado como prop** — não faz query própria
-- Calcula totais localmente com `reduce` sobre o array recebido
-- Garante que os valores refletem exatamente o período/status selecionado pelo usuário
+### `src/hooks/useDashboard.ts`
+Queries paralelas via Supabase client (sem RPC):
+- **KPIs**: counts/sums de `crm_clientes` (status=ativo), `crm_contratos` (status=ativo → sum valor_mensal, sum vidas), `crm_faturas` (status=OVERDUE → sum valor)
+- **Faturamento mensal**: busca todas as faturas com `data_vencimento >= primeiroDiaHa6Meses`, seleciona apenas `valor, status, data_vencimento`. **Agregação por mês feita no frontend com `reduce`**, gerando array `[{ mes: 'Nov/25', recebido: 0, pendente: 0 }, ...]` passado diretamente ao BarChart. Sem RPC.
+- **Propostas abertas**: top 5 com status=enviada, join `crm_clientes(razao_social)`
+- **Faturas vencidas**: top 5 com status=OVERDUE, join `crm_clientes(razao_social)`
 
-### 3. `src/components/financeiro/FaturasList.tsx`
-- Filtros: Select de status, DatePicker para período (início/fim), busca
-- Tabela: Número, Cliente, Valor, Vencimento, Status, Período Ref.
-- Linhas clicáveis → abre dialog de detalhe
-- Botão "Exportar CSV"
+### `src/pages/app/Dashboard.tsx`
+- **Linha 1 — 4 KPI Cards**: Clientes Ativos, MRR (R$), Vidas Totais, Inadimplência (R$)
+- **Linha 2 — BarChart** (recharts via `ChartContainer`): barras empilhadas Recebido (verde) vs Pendente+Vencido (amarelo), últimos 6 meses
+- **Linha 3 — 2 tabelas lado a lado**: Propostas Abertas e Faturas Vencidas, linhas clicáveis com `navigate()`
 
-### 4. `src/components/financeiro/FaturaDetalhe.tsx`
-- Dialog com dados completos da fatura
-- Ações: Marcar como Paga, Cancelar (AlertDialog)
+---
 
-### 5. `src/components/financeiro/ExportarCSV.ts`
-- Função utilitária: gera download CSV via `Blob` + `URL.createObjectURL`
+## Parte 2: Configurações
 
-## Arquivos a modificar
+### `src/hooks/useAsaasConfig.ts`
+- `useAsaasConfig()` — busca primeira linha de `crm_asaas_config`
+- `useUpdateAsaasConfig()` — mutation para upsert
 
-### `src/pages/app/Financeiro.tsx`
-- Estado de filtros no nível da página
-- Chama `useFaturas(filters)` uma única vez
-- Passa `faturas` filtradas como prop para `FinanceiroResumo` e `FaturasList`
-- Fluxo de dados:
-```text
-Financeiro (page)
-  ├─ filters state
-  ├─ useFaturas(filters) → faturas[]
-  ├─ <FinanceiroResumo faturas={faturas} />   ← calcula totais via reduce
-  └─ <FaturasList faturas={faturas} filters={...} onFilterChange={...} />
-```
+### `src/pages/app/Configuracoes.tsx`
+- **Card "Integração Asaas"**: API Key (password + toggle), Ambiente (select sandbox/production), Wallet ID, Webhook Token, NFS-e (switch), badge Ativo/Inativo
+- **Card "Informações do Sistema"**: nome da instância (readonly), versão
+- Carrega dados via `useAsaasConfig`, salva com upsert
+
+---
 
 ## Detalhes técnicos
 
-- Status badges: PENDING (amarelo), RECEIVED (verde), OVERDUE (vermelho), CANCELLED (cinza)
-- DatePicker com `pointer-events-auto` no Popover
-- Dark theme consistente
-- Sem migração de banco — `crm_faturas` já existe
+- Gráficos usam `ChartContainer` + recharts (já disponível)
+- Dark theme consistente (bg-white/5, border-white/10, text-white)
+- API Key nunca exibida em texto plano por padrão
+- Sem migração de banco — todas as tabelas já existem
+- Agregação de faturamento mensal 100% no frontend via reduce
 
