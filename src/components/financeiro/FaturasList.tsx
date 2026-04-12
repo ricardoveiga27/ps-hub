@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Download, Search } from "lucide-react";
+import { CalendarIcon, Download, Search, RefreshCw, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,9 @@ import {
 import type { Fatura, FaturaFilters } from "@/hooks/useFaturas";
 import { exportarCSV } from "./ExportarCSV";
 import FaturaDetalhe from "./FaturaDetalhe";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   faturas: Fatura[];
@@ -52,9 +55,60 @@ function fmtDate(d: string | null) {
 
 export default function FaturasList({ faturas, isLoading, filters, onFilterChange }: Props) {
   const [selectedFatura, setSelectedFatura] = useState<Fatura | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [emittingId, setEmittingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const setFilter = (key: keyof FaturaFilters, value: string | undefined) => {
     onFilterChange({ ...filters, [key]: value });
+  };
+
+  const handleSync = async (fatura: Fatura) => {
+    setSyncingId(fatura.id);
+    try {
+      // Step 1: Sync customer
+      const { data: syncData, error: syncError } = await supabase.functions.invoke(
+        "pshub-sync-asaas-customer",
+        { body: { clienteId: fatura.cliente_id } },
+      );
+      if (syncError) throw syncError;
+      if (syncData?.error) throw new Error(syncData.error);
+
+      // Step 2: Create payment
+      const { data: payData, error: payError } = await supabase.functions.invoke(
+        "pshub-create-payment",
+        { body: { faturaId: fatura.id } },
+      );
+      if (payError) throw payError;
+      if (payData?.error) throw new Error(payData.error);
+
+      toast.success("Fatura sincronizada com Asaas");
+      queryClient.invalidateQueries({ queryKey: ["faturas"] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao sincronizar com Asaas");
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const handleEmitNf = async (fatura: Fatura) => {
+    setEmittingId(fatura.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("pshub-emit-nfse", {
+        body: { faturaId: fatura.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("NFS-e solicitada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["faturas"] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao emitir NFS-e");
+    } finally {
+      setEmittingId(null);
+    }
   };
 
   return (
@@ -87,7 +141,6 @@ export default function FaturasList({ faturas, isLoading, filters, onFilterChang
           </SelectContent>
         </Select>
 
-        {/* Data Início */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal bg-white/5 border-white/10 text-white", !filters.dataInicio && "text-white/40")}>
@@ -106,7 +159,6 @@ export default function FaturasList({ faturas, isLoading, filters, onFilterChang
           </PopoverContent>
         </Popover>
 
-        {/* Data Fim */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal bg-white/5 border-white/10 text-white", !filters.dataFim && "text-white/40")}>
@@ -147,18 +199,19 @@ export default function FaturasList({ faturas, isLoading, filters, onFilterChang
               <TableHead className="text-white/70">Vencimento</TableHead>
               <TableHead className="text-white/70">Status</TableHead>
               <TableHead className="text-white/70">Período</TableHead>
+              <TableHead className="text-white/70">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-white/40 py-8">
+                <TableCell colSpan={7} className="text-center text-white/40 py-8">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : faturas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-white/40 py-8">
+                <TableCell colSpan={7} className="text-center text-white/40 py-8">
                   Nenhuma fatura encontrada
                 </TableCell>
               </TableRow>
@@ -166,6 +219,9 @@ export default function FaturasList({ faturas, isLoading, filters, onFilterChang
               faturas.map((f) => {
                 const s = statusMap[f.status] || statusMap.PENDING;
                 const cliente = f.crm_clientes?.nome_fantasia || f.crm_clientes?.razao_social || "—";
+                const isSyncing = syncingId === f.id;
+                const isEmitting = emittingId === f.id;
+                const hasSynced = !!f.asaas_payment_id;
                 return (
                   <TableRow
                     key={f.id}
@@ -180,6 +236,34 @@ export default function FaturasList({ faturas, isLoading, filters, onFilterChang
                       <Badge className={s.className}>{s.label}</Badge>
                     </TableCell>
                     <TableCell className="text-white/50 text-xs">{f.periodo_referencia || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {!hasSynced && f.status !== "CANCELLED" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-white/70 hover:text-white"
+                            disabled={isSyncing}
+                            onClick={() => handleSync(f)}
+                          >
+                            {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            <span className="ml-1">Sincronizar</span>
+                          </Button>
+                        )}
+                        {f.status === "RECEIVED" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-white/70 hover:text-white"
+                            disabled={isEmitting}
+                            onClick={() => handleEmitNf(f)}
+                          >
+                            {isEmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                            <span className="ml-1">Emitir NF</span>
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })
