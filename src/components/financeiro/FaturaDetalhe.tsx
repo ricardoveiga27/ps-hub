@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useUpdateFatura, type Fatura } from "@/hooks/useFaturas";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw, FileText, Loader2 } from "lucide-react";
 
 interface Props {
   fatura: Fatura | null;
@@ -45,6 +49,9 @@ function fmtDate(d: string | null) {
 
 export default function FaturaDetalhe({ fatura, open, onOpenChange }: Props) {
   const updateFatura = useUpdateFatura();
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+  const [emitting, setEmitting] = useState(false);
 
   if (!fatura) return null;
 
@@ -76,7 +83,54 @@ export default function FaturaDetalhe({ fatura, open, onOpenChange }: Props) {
     );
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const { data: syncData, error: syncError } = await supabase.functions.invoke(
+        "pshub-sync-asaas-customer",
+        { body: { clienteId: fatura.cliente_id } },
+      );
+      if (syncError) throw syncError;
+      if (syncData?.error) throw new Error(syncData.error);
+
+      const { data: payData, error: payError } = await supabase.functions.invoke(
+        "pshub-create-payment",
+        { body: { faturaId: fatura.id } },
+      );
+      if (payError) throw payError;
+      if (payData?.error) throw new Error(payData.error);
+
+      toast.success("Fatura sincronizada com Asaas");
+      queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao sincronizar");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleEmitNf = async () => {
+    setEmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("pshub-emit-nfse", {
+        body: { faturaId: fatura.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("NFS-e solicitada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao emitir NFS-e");
+    } finally {
+      setEmitting(false);
+    }
+  };
+
   const cliente = fatura.crm_clientes?.nome_fantasia || fatura.crm_clientes?.razao_social || "—";
+  const hasSynced = !!fatura.asaas_payment_id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -140,34 +194,50 @@ export default function FaturaDetalhe({ fatura, open, onOpenChange }: Props) {
           )}
         </div>
 
-        {fatura.status !== "RECEIVED" && fatura.status !== "CANCELLED" && (
-          <div className="flex gap-2 pt-4">
-            <Button size="sm" onClick={handleMarcarPaga} disabled={updateFatura.isPending}>
-              Marcar como Paga
+        <div className="flex flex-wrap gap-2 pt-4">
+          {!hasSynced && fatura.status !== "CANCELLED" && (
+            <Button size="sm" variant="outline" className="border-white/10 text-white" onClick={handleSync} disabled={syncing}>
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+              Sincronizar com Asaas
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" variant="destructive" disabled={updateFatura.isPending}>
-                  Cancelar Fatura
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="border-white/10 bg-[#1a1a2e] text-white">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Cancelar fatura?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-white/50">
-                    Esta ação não pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="border-white/10 text-white">Voltar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleCancelar} className="bg-destructive text-destructive-foreground">
-                    Confirmar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+          )}
+
+          {fatura.status === "RECEIVED" && (
+            <Button size="sm" variant="outline" className="border-white/10 text-white" onClick={handleEmitNf} disabled={emitting}>
+              {emitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+              Emitir NF
+            </Button>
+          )}
+
+          {fatura.status !== "RECEIVED" && fatura.status !== "CANCELLED" && (
+            <>
+              <Button size="sm" onClick={handleMarcarPaga} disabled={updateFatura.isPending}>
+                Marcar como Paga
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="destructive" disabled={updateFatura.isPending}>
+                    Cancelar Fatura
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="border-white/10 bg-[#1a1a2e] text-white">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancelar fatura?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-white/50">
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="border-white/10 text-white">Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCancelar} className="bg-destructive text-destructive-foreground">
+                      Confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
