@@ -1,59 +1,49 @@
 
 
-# PS Hub — Landing Page Institucional
+# Fase 1 + Fase 2 — Banco de Dados + Autenticação e Layout
 
-## Visão Geral
-Landing page institucional dark mode para o PS Hub, ecossistema de compliance psicossocial com três pilares (PS Index, PS Escuta, PS Cultura). Design sofisticado com glassmorphism, gradientes e animações.
+## Fase 1 — Banco de Dados
 
-## Estrutura
+Uma única migration SQL criando toda a infraestrutura:
 
-### 1. Setup Visual
-- Importar fontes Syne e DM Sans via Google Fonts
-- Configurar paleta de cores customizada no Tailwind (azul #0C1BC9, violeta #7C3AED, verde #00D857, backgrounds escuros)
-- Background principal #080D1F
+**12 tabelas** com prefixo `crm_`:
+- `crm_clientes`, `crm_contatos`, `crm_propostas`, `crm_contratos`, `crm_assinaturas`, `crm_faturas`, `crm_notas_fiscais`, `crm_asaas_customers`, `crm_asaas_config`, `crm_webhook_events`, `crm_reajustes`
+- `licencas_ativas` (tabela materializada com trigger automático)
 
-### 2. Hero Section
-- Logo "PSHub" com cores azul/verde
-- Tagline sobre ecossistema de saúde psicossocial
-- Dois CTAs: gradiente (âncora para pilares) e outline verde
-- Background com mesh gradient animado sutil usando as 3 cores
+**Funções SQL**:
+- `generate_numero_proposta()`, `generate_numero_contrato()`, `generate_numero_fatura()` — numeração PROP/CONT/FAT-NNN-AAAA sequencial por ano
+- `update_updated_at()` — trigger para atualizar `updated_at` automaticamente
+- `sync_licencas_ativas()` — trigger que faz upsert em `licencas_ativas` quando contratos ou assinaturas mudam
 
-### 3. Seção "Por que um Ecossistema?"
-- Texto sobre NR-01 e ciclo de compliance
-- Três ícones em linha (Avaliar, Acolher, Desenvolver) nas cores dos pilares
-- Linha gradiente conectando os ícones
+**RLS**: Habilitado em todas as tabelas com policy de acesso para usuários autenticados (sistema interno).
 
-### 4. Seção "Os Três Pilares"
-- 3 cards glassmorphism grandes com:
-  - Borda superior colorida por pilar
-  - Número marca d'água (01, 02, 03) com 5% opacidade
-  - Badge, ícone, título, subtítulo e descrição
-  - Hover com elevação e glow na cor do pilar
-- PS Index (azul), PS Escuta (violeta), PS Cultura (verde)
+---
 
-### 5. Seção "Como o Ecossistema se Integra"
-- Diagrama de fluxo circular/horizontal com setas
-- PS Index → PS Escuta → PS Cultura → ciclo
-- Cores e gradientes dos pilares nas conexões
+## Fase 2 — Autenticação e Layout
 
-### 6. Seção "Conformidade Regulatória"
-- 3 badges grandes: NR-01, Lei 14.457/22, LGPD
-- Bordas nas cores dos pilares
-- Texto sobre proteção legal
+### Arquivos novos:
 
-### 7. CTA Final
-- Background gradiente forte azul→violeta→verde
-- Título e botão branco "Solicitar uma demonstração"
+1. **`src/pages/app/Login.tsx`** — Página de login com email/senha, visual dark com cores PS Hub. Sem signup (usuários cadastrados manualmente).
 
-### 8. Footer
-- Logo PSHub, créditos Veiga Saúde Ocupacional
-- Links placeholder, fundo #06091A
+2. **`src/hooks/useAuth.ts`** — Hook de autenticação com `onAuthStateChange` + `getSession`, expõe `user`, `loading`, `signIn`, `signOut`.
 
-## Detalhes de UX
-- Animações de entrada ao scroll via IntersectionObserver (fade + translateY)
-- Cards com hover: elevação, box-shadow colorido
-- Botões com transições suaves
-- 100% responsivo mobile-first
-- Apenas ícones Lucide React, sem imagens externas
-- Componentes separados por seção
+3. **`src/components/app/AppLayout.tsx`** — Layout com `SidebarProvider` + sidebar + header com `SidebarTrigger`. Verifica autenticação e redireciona para login se não logado.
+
+4. **`src/components/app/AppSidebar.tsx`** — Sidebar com itens: Dashboard, Clientes, Propostas, Contratos, Financeiro, Configurações. Usa `NavLink` para highlight ativo. Logo PS Hub no topo.
+
+5. **Páginas placeholder** (6 arquivos):
+   - `src/pages/app/Dashboard.tsx`
+   - `src/pages/app/Clientes.tsx`
+   - `src/pages/app/Propostas.tsx`
+   - `src/pages/app/Contratos.tsx`
+   - `src/pages/app/Financeiro.tsx`
+   - `src/pages/app/Configuracoes.tsx`
+
+6. **`src/App.tsx`** — Adicionar rotas `/app/login` e `/app/*` (Dashboard, Clientes, etc.) sem alterar a rota `/` da landing page.
+
+### Detalhes técnicos:
+- Layout do app usa tema claro (override das CSS vars dark da landing) para o painel administrativo
+- Sidebar com ícones Lucide: `LayoutDashboard`, `Building2`, `FileText`, `ScrollText`, `Wallet`, `Settings`
+- Proteção de rotas via check de sessão no `AppLayout` — redireciona para `/app/login` se não autenticado
+- Páginas placeholder com título e card vazio, prontas para implementação nas próximas fases
 
