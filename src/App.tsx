@@ -9,6 +9,7 @@ import Login from "./pages/app/Login.tsx";
 import AppLayout from "./components/app/AppLayout.tsx";
 import Dashboard from "./pages/app/Dashboard.tsx";
 import Clientes from "./pages/app/Clientes.tsx";
+import ClienteDetalhe from "./pages/app/ClienteDetalhe.tsx";
 import Propostas from "./pages/app/Propostas.tsx";
 import Contratos from "./pages/app/Contratos.tsx";
 import Financeiro from "./pages/app/Financeiro.tsx";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/app" element={<AppLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="clientes" element={<Clientes />} />
+            <Route path="clientes/:id" element={<ClienteDetalhe />} />
             <Route path="propostas" element={<Propostas />} />
             <Route path="contratos" element={<Contratos />} />
             <Route path="financeiro" element={<Financeiro />} />
