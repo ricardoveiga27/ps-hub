@@ -43,6 +43,53 @@ export function useFaturas(filters: FaturaFilters = {}) {
   });
 }
 
+export type FaturaPendente = Tables<"crm_faturas"> & {
+  crm_clientes: { razao_social: string; nome_fantasia: string | null } | null;
+  crm_assinaturas: { vidas: number } | null;
+};
+
+export function useFaturasPendentes() {
+  return useQuery({
+    queryKey: ["faturas-pendentes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_faturas")
+        .select("*, crm_clientes(razao_social, nome_fantasia), crm_assinaturas:crm_assinaturas!crm_faturas_assinatura_id_fkey(vidas:crm_contratos(vidas))")
+        .eq("status", "PENDENTE_APROVACAO")
+        .order("data_vencimento", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as FaturaPendente[];
+    },
+  });
+}
+
+export function useAprovarFatura() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ faturaId, clienteId }: { faturaId: string; clienteId: string }) => {
+      // Step 1: Sync customer
+      const { data: syncData, error: syncError } = await supabase.functions.invoke(
+        "pshub-sync-asaas-customer",
+        { body: { clienteId } },
+      );
+      if (syncError) throw syncError;
+      if (syncData?.error) throw new Error(syncData.error);
+
+      // Step 2: Create payment
+      const { data: payData, error: payError } = await supabase.functions.invoke(
+        "pshub-create-payment",
+        { body: { faturaId } },
+      );
+      if (payError) throw payError;
+      if (payData?.error) throw new Error(payData.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      queryClient.invalidateQueries({ queryKey: ["faturas-pendentes"] });
+    },
+  });
+}
+
 export function useUpdateFatura() {
   const queryClient = useQueryClient();
   return useMutation({
