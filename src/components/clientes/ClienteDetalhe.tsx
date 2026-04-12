@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,8 +15,11 @@ import {
 import { useCliente, useUpdateCliente, useDeleteCliente } from "@/hooks/useClientes";
 import ClienteForm, { type ClienteFormValues } from "./ClienteForm";
 import ContatosList from "./ContatosList";
+import PropostaForm, { type PropostaFormValues } from "@/components/propostas/PropostaForm";
+import { useCreateProposta } from "@/hooks/usePropostas";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { toast as sonnerToast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -24,6 +27,14 @@ const STATUS_BADGE: Record<string, string> = {
   ativo: "bg-emerald-500/20 text-emerald-400",
   inativo: "bg-yellow-500/20 text-yellow-400",
   churned: "bg-red-500/20 text-red-400",
+};
+
+const PROPOSTA_STATUS_BADGE: Record<string, string> = {
+  rascunho: "bg-white/10 text-white/60",
+  enviada: "bg-blue-500/20 text-blue-400",
+  aceita: "bg-emerald-500/20 text-emerald-400",
+  recusada: "bg-red-500/20 text-red-400",
+  expirada: "bg-yellow-500/20 text-yellow-400",
 };
 
 function formatCnpj(cnpj: string | null) {
@@ -51,6 +62,9 @@ export default function ClienteDetalhePage() {
   const deleteMutation = useDeleteCliente();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [propostaFormOpen, setPropostaFormOpen] = useState(false);
+  const createPropostaMutation = useCreateProposta();
+  const queryClient = useQueryClient();
 
   // Read-only lists
   const { data: propostas } = useQuery({
@@ -82,6 +96,38 @@ export default function ClienteDetalhePage() {
       return data;
     },
   });
+
+  function handleCreateProposta(values: PropostaFormValues) {
+    const bruto = values.valor_mensal * values.vidas;
+    let valorFinal = bruto;
+    if (values.desconto_tipo === "percentual" && values.desconto_valor > 0) {
+      valorFinal = bruto * (1 - values.desconto_valor / 100);
+    } else if (values.desconto_tipo === "fixo" && values.desconto_valor > 0) {
+      valorFinal = bruto - values.desconto_valor;
+    }
+    createPropostaMutation.mutate(
+      {
+        cliente_id: values.cliente_id,
+        titulo: values.titulo,
+        vidas: values.vidas,
+        valor_mensal: values.valor_mensal,
+        valor_final: Math.max(0, valorFinal),
+        desconto_tipo: values.desconto_tipo === "nenhum" ? null : values.desconto_tipo,
+        desconto_valor: values.desconto_tipo === "nenhum" ? null : values.desconto_valor,
+        validade_dias: values.validade_dias,
+        observacoes: values.observacoes || null,
+        snapshot_condicoes: { dia_vencimento: values.dia_vencimento },
+      },
+      {
+        onSuccess: () => {
+          sonnerToast.success("Proposta criada com sucesso");
+          setPropostaFormOpen(false);
+          queryClient.invalidateQueries({ queryKey: ["propostas-cliente", id] });
+        },
+        onError: (e) => sonnerToast.error("Erro ao criar proposta: " + e.message),
+      }
+    );
+  }
 
   function handleUpdate(values: ClienteFormValues) {
     if (!id) return;
@@ -170,33 +216,44 @@ export default function ClienteDetalhePage() {
 
         {/* Propostas */}
         <TabsContent value="propostas">
-          <div className="rounded-lg border border-white/10 bg-white/5 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/10 hover:bg-transparent">
-                  <TableHead className="text-white/50">Nº</TableHead>
-                  <TableHead className="text-white/50">Título</TableHead>
-                  <TableHead className="text-white/50">Vidas</TableHead>
-                  <TableHead className="text-white/50">Valor Final</TableHead>
-                  <TableHead className="text-white/50">Status</TableHead>
-                  <TableHead className="text-white/50">Data</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!propostas?.length ? (
-                  <TableRow><TableCell colSpan={6} className="text-center text-white/40 py-8">Nenhuma proposta</TableCell></TableRow>
-                ) : propostas.map((p) => (
-                  <TableRow key={p.id} className="border-white/10">
-                    <TableCell className="text-white/60 font-mono text-xs">{p.numero_proposta ?? "—"}</TableCell>
-                    <TableCell className="text-white">{p.titulo ?? "—"}</TableCell>
-                    <TableCell className="text-white/60">{p.vidas}</TableCell>
-                    <TableCell className="text-white/60">{formatCurrency(p.valor_final)}</TableCell>
-                    <TableCell><Badge className="bg-white/10 text-white/60">{p.status}</Badge></TableCell>
-                    <TableCell className="text-white/60">{formatDate(p.created_at)}</TableCell>
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setPropostaFormOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Nova Proposta
+              </Button>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-white/5 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead className="text-white/50">Nº</TableHead>
+                    <TableHead className="text-white/50">Título</TableHead>
+                    <TableHead className="text-white/50 text-center">Vidas</TableHead>
+                    <TableHead className="text-white/50 text-right">Valor Final</TableHead>
+                    <TableHead className="text-white/50">Status</TableHead>
+                    <TableHead className="text-white/50">Data</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {!propostas?.length ? (
+                    <TableRow><TableCell colSpan={6} className="text-center text-white/40 py-8">Nenhuma proposta</TableCell></TableRow>
+                  ) : propostas.map((p) => (
+                    <TableRow
+                      key={p.id}
+                      className="border-white/10 cursor-pointer hover:bg-white/5"
+                      onClick={() => navigate(`/app/propostas/${p.id}`)}
+                    >
+                      <TableCell className="text-white/60 font-mono text-xs">{p.numero_proposta ?? "—"}</TableCell>
+                      <TableCell className="text-white">{p.titulo ?? "—"}</TableCell>
+                      <TableCell className="text-white/60 text-center">{p.vidas}</TableCell>
+                      <TableCell className="text-white text-right font-medium">{formatCurrency(p.valor_final)}</TableCell>
+                      <TableCell><Badge className={PROPOSTA_STATUS_BADGE[p.status] || ""}>{p.status}</Badge></TableCell>
+                      <TableCell className="text-white/60">{formatDate(p.created_at)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </TabsContent>
 
@@ -268,6 +325,15 @@ export default function ClienteDetalhePage() {
       </Tabs>
 
       <ClienteForm open={editOpen} onOpenChange={setEditOpen} defaultValues={cliente} onSubmit={handleUpdate} loading={updateMutation.isPending} />
+
+      <PropostaForm
+        open={propostaFormOpen}
+        onOpenChange={setPropostaFormOpen}
+        onSubmit={handleCreateProposta}
+        loading={createPropostaMutation.isPending}
+        defaultValues={{ cliente_id: id }}
+        lockedClienteId={id}
+      />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent className="bg-[hsl(var(--ps-bg-dark))] border-white/10">
