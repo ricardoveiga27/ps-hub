@@ -1,49 +1,52 @@
 
 
-# Fase 1 + Fase 2 — Banco de Dados + Autenticação e Layout
+# Fase 3 — CRUD Completo de Clientes e Contatos (Revisado)
 
-## Fase 1 — Banco de Dados
+## Arquivos a criar
 
-Uma única migration SQL criando toda a infraestrutura:
+### Hooks
 
-**12 tabelas** com prefixo `crm_`:
-- `crm_clientes`, `crm_contatos`, `crm_propostas`, `crm_contratos`, `crm_assinaturas`, `crm_faturas`, `crm_notas_fiscais`, `crm_asaas_customers`, `crm_asaas_config`, `crm_webhook_events`, `crm_reajustes`
-- `licencas_ativas` (tabela materializada com trigger automático)
+1. **`src/hooks/useClientes.ts`** — React Query:
+   - `useClientes(filters)` — lista com filtros (status, segmento, porte) e busca por razão social/CNPJ. A busca por CNPJ deve **limpar a máscara do input** (remover `.`, `/`, `-`) antes de comparar com `.ilike()` no banco, já que o CNPJ é armazenado apenas como dígitos.
+   - `useCliente(id)` — busca único
+   - `useCreateCliente()`, `useUpdateCliente()`, `useDeleteCliente()` — mutations com invalidação
 
-**Funções SQL**:
-- `generate_numero_proposta()`, `generate_numero_contrato()`, `generate_numero_fatura()` — numeração PROP/CONT/FAT-NNN-AAAA sequencial por ano
-- `update_updated_at()` — trigger para atualizar `updated_at` automaticamente
-- `sync_licencas_ativas()` — trigger que faz upsert em `licencas_ativas` quando contratos ou assinaturas mudam
+2. **`src/hooks/useContatos.ts`** — React Query:
+   - `useContatos(clienteId)`, `useCreateContato()`, `useUpdateContato()`, `useDeleteContato()`
 
-**RLS**: Habilitado em todas as tabelas com policy de acesso para usuários autenticados (sistema interno).
+### Componentes
 
----
+3. **`src/components/clientes/ClientesList.tsx`** — Tabela com busca, filtros (status, segmento, porte), badges coloridos, botão "Novo Cliente", linha clicável → detalhe
 
-## Fase 2 — Autenticação e Layout
+4. **`src/components/clientes/ClienteForm.tsx`** — React Hook Form + Zod:
+   - CNPJ com máscara `XX.XXX.XXX/XXXX-XX` no input (exibição), mas **salvo no banco apenas como dígitos** (14 chars) para facilitar busca e sincronização com Asaas
+   - Validação de formato CNPJ (14 dígitos após limpeza)
+   - Campos: razao_social (obrigatório), nome_fantasia, cnpj, segmento (select), porte (select), email, telefone, cidade, uf (select 27 estados), status, responsavel_comercial, observacoes
 
-### Arquivos novos:
+5. **`src/components/clientes/ClienteDetalhe.tsx`** — Tabs:
+   - **Dados** — exibe/edita dados do cliente
+   - **Contatos** — CRUD de contatos
+   - **Propostas** — lista read-only de `crm_propostas` por `cliente_id`
+   - **Contratos** — lista read-only de `crm_contratos` por `cliente_id`
+   - **Financeiro** — busca diretamente `crm_faturas` filtrando por `cliente_id`. Sem join com assinaturas.
 
-1. **`src/pages/app/Login.tsx`** — Página de login com email/senha, visual dark com cores PS Hub. Sem signup (usuários cadastrados manualmente).
+6. **`src/components/clientes/ContatoForm.tsx`** — Formulário: nome, cargo, email, telefone, celular, whatsapp, principal (switch), ativo (switch)
 
-2. **`src/hooks/useAuth.ts`** — Hook de autenticação com `onAuthStateChange` + `getSession`, expõe `user`, `loading`, `signIn`, `signOut`.
+7. **`src/components/clientes/ContatosList.tsx`** — Lista de contatos com ações editar/excluir
 
-3. **`src/components/app/AppLayout.tsx`** — Layout com `SidebarProvider` + sidebar + header com `SidebarTrigger`. Verifica autenticação e redireciona para login se não logado.
+### Páginas e Rotas
 
-4. **`src/components/app/AppSidebar.tsx`** — Sidebar com itens: Dashboard, Clientes, Propostas, Contratos, Financeiro, Configurações. Usa `NavLink` para highlight ativo. Logo PS Hub no topo.
+8. **`src/pages/app/Clientes.tsx`** — Reescrever para renderizar `ClientesList`
+9. **`src/pages/app/ClienteDetalhe.tsx`** — Nova página
+10. **`src/App.tsx`** — Adicionar rota `clientes/:id`
 
-5. **Páginas placeholder** (6 arquivos):
-   - `src/pages/app/Dashboard.tsx`
-   - `src/pages/app/Clientes.tsx`
-   - `src/pages/app/Propostas.tsx`
-   - `src/pages/app/Contratos.tsx`
-   - `src/pages/app/Financeiro.tsx`
-   - `src/pages/app/Configuracoes.tsx`
+## Detalhes técnicos
 
-6. **`src/App.tsx`** — Adicionar rotas `/app/login` e `/app/*` (Dashboard, Clientes, etc.) sem alterar a rota `/` da landing page.
-
-### Detalhes técnicos:
-- Layout do app usa tema claro (override das CSS vars dark da landing) para o painel administrativo
-- Sidebar com ícones Lucide: `LayoutDashboard`, `Building2`, `FileText`, `ScrollText`, `Wallet`, `Settings`
-- Proteção de rotas via check de sessão no `AppLayout` — redireciona para `/app/login` se não autenticado
-- Páginas placeholder com título e card vazio, prontas para implementação nas próximas fases
+- Badges de status: prospecto (cinza), ativo (verde), inativo (amarelo), churned (vermelho)
+- Segmentos: transportes, saúde, indústria, logística, varejo, outros
+- Porte: micro, pequena, média, grande
+- Tema dark consistente (bg-white/5, text-white, border-white/10)
+- Toast em todas as operações CRUD
+- AlertDialog de confirmação antes de excluir
+- CNPJ: máscara visual no form, armazenamento sem formatação, busca com limpeza de máscara do input
 
