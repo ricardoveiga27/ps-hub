@@ -66,11 +66,30 @@ Deno.serve(async (req) => {
       .eq("cliente_id", clienteId)
       .maybeSingle();
 
+    // Sanitize CPF/CNPJ — digits only
+    const rawDoc = (cliente.cnpj || "").replace(/\D/g, "");
+    if (!rawDoc || (rawDoc.length !== 11 && rawDoc.length !== 14)) {
+      return new Response(
+        JSON.stringify({ error: `CPF/CNPJ inválido para o cliente "${cliente.razao_social}". Atualize o cadastro com um documento válido (11 ou 14 dígitos).` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    // Reject obviously fake docs (all same digit)
+    if (/^(\d)\1+$/.test(rawDoc)) {
+      return new Response(
+        JSON.stringify({ error: `CPF/CNPJ "${rawDoc}" é inválido (todos os dígitos iguais). Atualize o cadastro do cliente.` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Sanitize phone — digits only
+    const cleanPhone = (cliente.telefone || "").replace(/\D/g, "") || undefined;
+
     const payload = {
       name: cliente.razao_social,
-      cpfCnpj: cliente.cnpj,
-      email: cliente.email,
-      mobilePhone: cliente.telefone,
+      cpfCnpj: rawDoc,
+      email: cliente.email || undefined,
+      mobilePhone: cleanPhone,
     };
 
     let asaasCustomerId: string;
