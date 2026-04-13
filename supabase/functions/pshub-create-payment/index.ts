@@ -72,12 +72,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Ensure dueDate is not in the past — Asaas rejects past dates
+    let dueDate = fatura.data_vencimento;
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    if (dueDate < today) {
+      dueDate = today;
+      // Also update the fatura record so it stays consistent
+      await supabase
+        .from("crm_faturas")
+        .update({ data_vencimento: today })
+        .eq("id", faturaId);
+    }
+
     // Create payment
     const paymentPayload = {
       customer: mapping.asaas_customer_id,
       billingType: "UNDEFINED",
       value: Number(fatura.valor),
-      dueDate: fatura.data_vencimento,
+      dueDate,
       description: fatura.descricao,
       externalReference: fatura.id,
     };
