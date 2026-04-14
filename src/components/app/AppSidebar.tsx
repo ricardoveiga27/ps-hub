@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Building2,
+  Package,
   FileText,
   ScrollText,
   Repeat,

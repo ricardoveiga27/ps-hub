@@ -47,9 +47,11 @@ export default function Pacotes() {
     createMutation.mutate(
       {
         ...values,
+        codigo: values.codigo,
+        nome: values.nome,
         faixa_max_vidas: values.faixa_max_vidas || null,
         excedente_relato_valor: values.excedente_relato_valor || null,
-      },
+      } as any,
       {
         onSuccess: () => { toast.success("Pacote criado"); setFormOpen(false); },
         onError: (e) => toast.error("Erro: " + e.message),

@@ -4,6 +4,7 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase
 
 export type Proposta = Tables<"crm_propostas"> & {
   crm_clientes?: { razao_social: string; nome_fantasia: string | null } | null;
+  crm_pacotes?: { codigo: string; nome: string } | null;
 };
 export type PropostaInsert = TablesInsert<"crm_propostas">;
 export type PropostaUpdate = TablesUpdate<"crm_propostas">;
@@ -19,7 +20,7 @@ export function usePropostas(filters: PropostaFilters = {}) {
     queryFn: async () => {
       let query = supabase
         .from("crm_propostas")
-        .select("*, crm_clientes(razao_social, nome_fantasia)")
+        .select("*, crm_clientes(razao_social, nome_fantasia), crm_pacotes(codigo, nome)")
         .order("created_at", { ascending: false });
 
       if (filters.status) {
@@ -45,7 +46,7 @@ export function useProposta(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_propostas")
-        .select("*, crm_clientes(razao_social, nome_fantasia)")
+        .select("*, crm_clientes(razao_social, nome_fantasia), crm_pacotes(codigo, nome)")
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
