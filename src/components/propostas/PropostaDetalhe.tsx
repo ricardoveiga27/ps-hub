@@ -188,6 +188,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
 
   const editDefaults: Partial<PropostaFormValues> = {
     cliente_id: proposta.cliente_id,
+    pacote_id: (proposta as any).pacote_id || "",
     titulo: proposta.titulo || "",
     vidas: proposta.vidas,
     valor_mensal: proposta.valor_mensal,
@@ -249,6 +250,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
           <CardHeader><CardTitle className="text-white text-base">Dados da Proposta</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <Row label="Título" value={proposta.titulo || "—"} />
+            {pacoteNome && <Row label="Pacote" value={pacoteNome} />}
             <Row label="Vidas" value={String(proposta.vidas)} />
             <Row label="Valor/vida" value={formatCurrency(proposta.valor_mensal)} />
             <Row label="Desconto" value={

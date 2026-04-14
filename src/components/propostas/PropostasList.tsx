@@ -56,6 +56,7 @@ export default function PropostasList() {
     createMutation.mutate(
       {
         cliente_id: values.cliente_id,
+        pacote_id: values.pacote_id && values.pacote_id !== "nenhum" ? values.pacote_id : null,
         titulo: values.titulo,
         vidas: values.vidas,
         valor_mensal: values.valor_mensal,
