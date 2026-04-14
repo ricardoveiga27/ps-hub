@@ -127,6 +127,7 @@ export default function PropostasList() {
             <TableRow className="border-white/10 hover:bg-transparent">
               <TableHead className="text-white/50">Nº</TableHead>
               <TableHead className="text-white/50">Cliente</TableHead>
+              <TableHead className="text-white/50">Pacote</TableHead>
               <TableHead className="text-white/50">Título</TableHead>
               <TableHead className="text-white/50 text-center">Vidas</TableHead>
               <TableHead className="text-white/50 text-right">Valor Final</TableHead>
@@ -136,10 +137,10 @@ export default function PropostasList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-white/40 py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-white/40 py-8">Carregando...</TableCell></TableRow>
             ) : !propostas?.length ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={8} className="text-center py-12">
                   <FileText className="h-10 w-10 text-white/20 mx-auto mb-2" />
                   <p className="text-white/40">Nenhuma proposta encontrada</p>
                 </TableCell>
@@ -155,6 +156,7 @@ export default function PropostasList() {
                   <TableCell className="text-white">
                     {p.crm_clientes?.razao_social || "—"}
                   </TableCell>
+                  <TableCell className="text-white/60 text-sm">{(p as any).crm_pacotes?.nome || "—"}</TableCell>
                   <TableCell className="text-white/80">{p.titulo || "—"}</TableCell>
                   <TableCell className="text-white/70 text-center">{p.vidas}</TableCell>
                   <TableCell className="text-white text-right font-medium">{formatCurrency(p.valor_final)}</TableCell>
