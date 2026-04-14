@@ -1,81 +1,81 @@
 
 
-# Módulo Financeiro Completo — Assinaturas + Fila de Aprovação + NFS-e Automática
+# Módulo de Gestão de Pacotes Comerciais (revisado)
 
 ## Resumo
-
-3 entregas: nova página de Assinaturas, fila de aprovação de faturas no Financeiro, e automação NFS-e no webhook.
-
----
-
-## 1. Página /app/assinaturas
-
-### `src/hooks/useAssinaturas.ts` (novo)
-- `useAssinaturas()` — lista com join `crm_clientes(razao_social, nome_fantasia)` e `crm_contratos(codigo_contrato, ps_index_ativo, ps_escuta_ativo, ps_cultura_ativo)`
-- `useUpdateAssinatura()` — mutation que atualiza `crm_assinaturas` (vidas, valor) E também `crm_contratos.vidas` e `crm_contratos.valor_mensal` do contrato vinculado (sequencial)
-
-### `src/pages/app/Assinaturas.tsx` (novo)
-- Tabela: Cliente, Contrato, Vidas, Valor Mensal, Dia Vencimento, Próximo Reajuste, Status
-- Badges: ACTIVE (verde), SUSPENDED (amarelo), CANCELED (cinza)
-- Dots coloridos dos produtos (Index azul, Escuta roxo, Cultura verde) do contrato
-- Botão "Editar" → Dialog com campos vidas (number) e valor (R$), salva nos dois locais
-
-### `src/App.tsx` — rota `/app/assinaturas`
-
-### `src/components/app/AppSidebar.tsx` — item "Assinaturas" com ícone `Repeat` entre Contratos e Financeiro
+Criar tabela `crm_pacotes`, CRUD completo com UI em cards, vincular pacotes a propostas e contratos, popular com 4 pacotes iniciais. Inclui `pacote_id` em `crm_propostas` para rastreabilidade comercial.
 
 ---
 
-## 2. Fila de aprovação no Financeiro
+## 1. Migração de Banco
 
-### `src/hooks/useFaturas.ts` — adicionar:
-- `useFaturasPendentes()` — faturas com status `PENDENTE_APROVACAO`, join `crm_clientes(razao_social, nome_fantasia)` e join em `crm_assinaturas(vidas)` via `assinatura_id`
-- `useAprovarFatura()` — mutation sequencial: `pshub-sync-asaas-customer` → `pshub-create-payment`, invalida queries
+Uma migration SQL que:
 
-### `src/components/financeiro/FilaAprovacao.tsx` (novo)
-- Card com badge de contagem ("N faturas aguardando aprovação")
-- Tabela: Cliente, Vidas, Valor, Vencimento, Período
-- Botão "Aprovar" por linha (loading + toast)
-- Botão "Editar Vidas" por linha → Dialog com campo vidas (number) e campo valor (editável, pré-calculado proporcionalmente: `novo_valor = (novas_vidas / vidas_atuais) * valor_atual`). O operador pode sobrescrever o valor antes de salvar.
-- Ao salvar: atualiza `crm_assinaturas.vidas` e `crm_faturas.vidas` + `crm_faturas.valor`
+- Cria `crm_pacotes` com todos os campos (codigo UNIQUE, preco_por_vida, flags booleanas, faixas de vidas, etc.)
+- Validation trigger para status (ativo/legado/cancelado) em vez de CHECK constraint
+- Aplica trigger `update_updated_at_column`
+- RLS + 4 policies (SELECT/INSERT/UPDATE/DELETE para authenticated)
+- INSERT dos 4 pacotes iniciais (ESSENCIAL-2026, ESSENCIAL-PLUS-2026, PROFISSIONAL-2026, ENTERPRISE-2026)
+- `ALTER TABLE crm_contratos ADD COLUMN pacote_id uuid REFERENCES crm_pacotes(id), ADD COLUMN snapshot_pacote jsonb`
+- `ALTER TABLE crm_propostas ADD COLUMN pacote_id uuid REFERENCES crm_pacotes(id)`
 
-### `src/pages/app/Financeiro.tsx` — `FilaAprovacao` acima do resumo, sempre visível
+## 2. Hook `src/hooks/usePacotes.ts` (novo)
 
-### `FaturasList.tsx` e `FaturaDetalhe.tsx` — adicionar `PENDENTE_APROVACAO` ao statusMap (âmbar/laranja, label "Aguardando Aprovação")
+- `usePacotes(status?)` — lista com filtro opcional
+- `usePacote(id)` — busca único
+- `useCreatePacote()`, `useUpdatePacote()` — mutations com invalidação
+- `useClonePacote()` — copia campos, sufixo "-CLONE" no codigo, toast informativo
+- Tipos exportados: `Pacote`, `PacoteInsert`, `PacoteUpdate`
 
----
+## 3. Componente `src/components/pacotes/PacoteForm.tsx` (novo)
 
-## 3. Webhook — NFS-e automática
+Dialog com React Hook Form + Zod, 5 seções:
+- **Identificação**: codigo (uppercase auto), nome, descricao, status
+- **Precificação**: preco_por_vida, faixa_min/max_vidas, cobranca_tipo
+- **PS Index**: switch + campos condicionais (ciclos, suporte_coleta, followup, acompanhamento)
+- **PS Escuta**: switch + campos condicionais (iris, franquia tipo/qtd, excedente)
+- **PS Cultura**: switch + campos condicionais (modulo_liderancas, catalogo_completo)
 
-### `supabase/functions/pshub-webhook/index.ts`
-- No bloco `PAYMENT_RECEIVED/PAYMENT_CONFIRMED`, após atualizar status para RECEIVED:
-  - Select a fatura atualizada pelo `asaas_payment_id` para obter o `id`
-  - Chamar `pshub-emit-nfse` via `fetch()` interno:
-    ```
-    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/pshub-emit-nfse`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ faturaId })
-    })
-    ```
-  - Try/catch — se falhar, apenas logar, não bloquear retorno 200
+## 4. Página `src/pages/app/Pacotes.tsx` (nova)
 
----
+- Grid de cards (não tabela)
+- Cada card: código, nome, badge status, preço/vida, faixa vidas, dots produtos
+- Filtro por status (padrão: todos exceto cancelado)
+- Ações: Editar, Clonar, Descontinuar (AlertDialog → legado), Cancelar (AlertDialog)
+- Legado: opacidade 50%. Cancelado: oculto exceto no filtro "cancelado"
 
-## 4. Geração mensal — ajustes
+## 5. Ajustes em arquivos existentes
 
-### `supabase/functions/pshub-generate-monthly-invoices/index.ts`
-- Alterar select para incluir `vidas` da assinatura
-- Status de inserção: `PENDENTE_APROVACAO` (não `PENDING`)
-- Copiar `vidas` para `crm_faturas.vidas`
+### `src/components/propostas/PropostaForm.tsx`
+- Adicionar select de pacote (filtro status='ativo') via `usePacotes`
+- Ao selecionar pacote + vidas → calcula `valor_mensal = preco_por_vida × vidas`
+- Resumo do pacote abaixo do select (dots produtos, ciclos, franquia)
+- Campo valor_mensal continua editável para descontos
+
+### `src/hooks/usePropostas.ts`
+- Adicionar `pacote_id` ao tipo Proposta (já vem do DB)
+- Incluir join `crm_pacotes(codigo, nome)` nas queries de lista e detalhe
+
+### `src/components/propostas/PropostaDetalhe.tsx`
+- Exibir nome do pacote vinculado nos dados da proposta
+- No `handleAceitar()`: buscar pacote via `proposta.pacote_id` do banco, incluir `pacote_id` e `snapshot_pacote` (JSON completo) no INSERT de `crm_contratos`
+
+### `src/components/propostas/PropostasList.tsx`
+- Exibir coluna "Pacote" na tabela de propostas
+
+### `src/App.tsx`
+- Rota `/app/pacotes` → componente `Pacotes`
+
+### `src/components/app/AppSidebar.tsx`
+- Item "Pacotes" com ícone `Package` entre Dashboard e Clientes
 
 ---
 
 ## Detalhes técnicos
 
-- Badge `PENDENTE_APROVACAO`: `bg-amber-500/20 text-amber-300 border-amber-500/30`, label "Aguardando Aprovação"
-- Filtro de status no `FaturasList` ganha opção "Aguardando Aprovação"
+- Badges: ativo (verde), legado (âmbar), cancelado (cinza)
 - Dark theme consistente (bg-white/5, text-white, border-white/10)
-- Sem migração de banco — todas as tabelas e campos já existem
-- 9 arquivos criados/editados
+- Toast em todas operações CRUD
+- `pacote_id` em `crm_propostas` permite rastrear origem comercial e recuperar dados do pacote no `handleAceitar()` direto do banco, sem depender de estado local
+- 10 arquivos criados/editados
 
