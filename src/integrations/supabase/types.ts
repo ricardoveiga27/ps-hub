@@ -267,11 +267,13 @@ export type Database = {
           id: string
           indice_reajuste: string
           observacoes: string | null
+          pacote_id: string | null
           percentual_reajuste_fixo: number | null
           proposta_id: string | null
           ps_cultura_ativo: boolean
           ps_escuta_ativo: boolean
           ps_index_ativo: boolean
+          snapshot_pacote: Json | null
           status: string
           updated_at: string
           valor_mensal: number
@@ -288,11 +290,13 @@ export type Database = {
           id?: string
           indice_reajuste?: string
           observacoes?: string | null
+          pacote_id?: string | null
           percentual_reajuste_fixo?: number | null
           proposta_id?: string | null
           ps_cultura_ativo?: boolean
           ps_escuta_ativo?: boolean
           ps_index_ativo?: boolean
+          snapshot_pacote?: Json | null
           status?: string
           updated_at?: string
           valor_mensal: number
@@ -309,11 +313,13 @@ export type Database = {
           id?: string
           indice_reajuste?: string
           observacoes?: string | null
+          pacote_id?: string | null
           percentual_reajuste_fixo?: number | null
           proposta_id?: string | null
           ps_cultura_ativo?: boolean
           ps_escuta_ativo?: boolean
           ps_index_ativo?: boolean
+          snapshot_pacote?: Json | null
           status?: string
           updated_at?: string
           valor_mensal?: number
@@ -325,6 +331,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_pacote_id_fkey"
+            columns: ["pacote_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pacotes"
             referencedColumns: ["id"]
           },
           {
@@ -477,6 +490,90 @@ export type Database = {
           },
         ]
       }
+      crm_pacotes: {
+        Row: {
+          acompanhamento_continuo: boolean
+          catalogo_completo: boolean
+          ciclos_index_ano: number | null
+          cobranca_tipo: string
+          codigo: string
+          criado_em: string
+          descontinuado_em: string | null
+          descricao: string | null
+          excedente_relato_valor: number | null
+          faixa_max_vidas: number | null
+          faixa_min_vidas: number | null
+          followup_90dias: boolean
+          franquia_relatos_qtd: number | null
+          franquia_relatos_tipo: string
+          id: string
+          iris_ativo: boolean
+          modulo_liderancas: boolean
+          nome: string
+          preco_por_vida: number | null
+          ps_cultura_ativo: boolean
+          ps_escuta_ativo: boolean
+          ps_index_ativo: boolean
+          status: string
+          suporte_coleta: boolean
+          updated_at: string
+        }
+        Insert: {
+          acompanhamento_continuo?: boolean
+          catalogo_completo?: boolean
+          ciclos_index_ano?: number | null
+          cobranca_tipo?: string
+          codigo: string
+          criado_em?: string
+          descontinuado_em?: string | null
+          descricao?: string | null
+          excedente_relato_valor?: number | null
+          faixa_max_vidas?: number | null
+          faixa_min_vidas?: number | null
+          followup_90dias?: boolean
+          franquia_relatos_qtd?: number | null
+          franquia_relatos_tipo?: string
+          id?: string
+          iris_ativo?: boolean
+          modulo_liderancas?: boolean
+          nome: string
+          preco_por_vida?: number | null
+          ps_cultura_ativo?: boolean
+          ps_escuta_ativo?: boolean
+          ps_index_ativo?: boolean
+          status?: string
+          suporte_coleta?: boolean
+          updated_at?: string
+        }
+        Update: {
+          acompanhamento_continuo?: boolean
+          catalogo_completo?: boolean
+          ciclos_index_ano?: number | null
+          cobranca_tipo?: string
+          codigo?: string
+          criado_em?: string
+          descontinuado_em?: string | null
+          descricao?: string | null
+          excedente_relato_valor?: number | null
+          faixa_max_vidas?: number | null
+          faixa_min_vidas?: number | null
+          followup_90dias?: boolean
+          franquia_relatos_qtd?: number | null
+          franquia_relatos_tipo?: string
+          id?: string
+          iris_ativo?: boolean
+          modulo_liderancas?: boolean
+          nome?: string
+          preco_por_vida?: number | null
+          ps_cultura_ativo?: boolean
+          ps_escuta_ativo?: boolean
+          ps_index_ativo?: boolean
+          status?: string
+          suporte_coleta?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_propostas: {
         Row: {
           aceita_em: string | null
@@ -489,6 +586,7 @@ export type Database = {
           motivo_recusa: string | null
           numero_proposta: string | null
           observacoes: string | null
+          pacote_id: string | null
           recusada_em: string | null
           snapshot_condicoes: Json | null
           status: string
@@ -510,6 +608,7 @@ export type Database = {
           motivo_recusa?: string | null
           numero_proposta?: string | null
           observacoes?: string | null
+          pacote_id?: string | null
           recusada_em?: string | null
           snapshot_condicoes?: Json | null
           status?: string
@@ -531,6 +630,7 @@ export type Database = {
           motivo_recusa?: string | null
           numero_proposta?: string | null
           observacoes?: string | null
+          pacote_id?: string | null
           recusada_em?: string | null
           snapshot_condicoes?: Json | null
           status?: string
@@ -547,6 +647,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_pacote_id_fkey"
+            columns: ["pacote_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pacotes"
             referencedColumns: ["id"]
           },
         ]

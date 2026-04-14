@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Building2,
+  Package,
   FileText,
   ScrollText,
   Repeat,
@@ -28,6 +29,7 @@ import { Button } from "@/components/ui/button";
 
 const menuItems = [
   { title: "Dashboard", url: "/app/dashboard", icon: LayoutDashboard },
+  { title: "Pacotes", url: "/app/pacotes", icon: Package },
   { title: "Clientes", url: "/app/clientes", icon: Building2 },
   { title: "Propostas", url: "/app/propostas", icon: FileText },
   { title: "Contratos", url: "/app/contratos", icon: ScrollText },

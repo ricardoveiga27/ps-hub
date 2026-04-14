@@ -12,10 +12,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useClientes } from "@/hooks/useClientes";
+import { usePacotes, type Pacote } from "@/hooks/usePacotes";
 import { useEffect, useMemo } from "react";
 
 const propostaSchema = z.object({
   cliente_id: z.string().min(1, "Selecione um cliente"),
+  pacote_id: z.string().optional(),
   titulo: z.string().min(1, "Informe o título").max(200),
   vidas: z.coerce.number().min(1, "Mínimo 1 vida"),
   valor_mensal: z.coerce.number().min(0.01, "Informe o valor por vida"),
@@ -41,11 +43,13 @@ export default function PropostaForm({
   open, onOpenChange, onSubmit, loading, defaultValues, lockedClienteId,
 }: PropostaFormProps) {
   const { data: clientes } = useClientes();
+  const { data: pacotesAtivos } = usePacotes("ativo");
 
   const form = useForm<PropostaFormValues>({
     resolver: zodResolver(propostaSchema),
     defaultValues: {
       cliente_id: "",
+      pacote_id: "",
       titulo: "",
       vidas: 1,
       valor_mensal: 0,
@@ -62,6 +66,7 @@ export default function PropostaForm({
     if (open) {
       form.reset({
         cliente_id: "",
+        pacote_id: "",
         titulo: "",
         vidas: 1,
         valor_mensal: 0,
@@ -75,13 +80,26 @@ export default function PropostaForm({
     }
   }, [open, defaultValues]);
 
+  const pacoteId = form.watch("pacote_id");
   const vidas = form.watch("vidas");
   const valorMensal = form.watch("valor_mensal");
   const descontoTipo = form.watch("desconto_tipo");
   const descontoValor = form.watch("desconto_valor");
 
+  const selectedPacote = useMemo(() => {
+    if (!pacoteId || !pacotesAtivos) return null;
+    return pacotesAtivos.find((p) => p.id === pacoteId) || null;
+  }, [pacoteId, pacotesAtivos]);
+
+  // Auto-fill valor_mensal when pacote or vidas change
+  useEffect(() => {
+    if (selectedPacote && vidas > 0) {
+      form.setValue("valor_mensal", selectedPacote.preco_por_vida! * vidas);
+    }
+  }, [selectedPacote, vidas]);
+
   const valorFinal = useMemo(() => {
-    const bruto = valorMensal * vidas;
+    const bruto = valorMensal;
     if (descontoTipo === "percentual" && descontoValor > 0) {
       return bruto * (1 - descontoValor / 100);
     }
@@ -89,7 +107,7 @@ export default function PropostaForm({
       return bruto - descontoValor;
     }
     return bruto;
-  }, [vidas, valorMensal, descontoTipo, descontoValor]);
+  }, [valorMensal, descontoTipo, descontoValor]);
 
   function handleSubmit(values: PropostaFormValues) {
     onSubmit(values);
@@ -126,6 +144,32 @@ export default function PropostaForm({
               </FormItem>
             )} />
 
+            {/* Pacote select */}
+            <FormField control={form.control} name="pacote_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-white/70">Pacote</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue placeholder="Selecione um pacote (opcional)" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="bg-[#1a1a2e] border-white/10">
+                    <SelectItem value="nenhum" className="text-white/50">Sem pacote</SelectItem>
+                    {pacotesAtivos?.map((p) => (
+                      <SelectItem key={p.id} value={p.id} className="text-white">
+                        {p.nome} — R$ {p.preco_por_vida?.toFixed(2)}/vida
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            {/* Pacote summary */}
+            {selectedPacote && <PacoteSummary pacote={selectedPacote} />}
+
             <FormField control={form.control} name="titulo" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-white/70">Título</FormLabel>
@@ -149,7 +193,7 @@ export default function PropostaForm({
 
               <FormField control={form.control} name="valor_mensal" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/70">Valor/vida (R$)</FormLabel>
+                  <FormLabel className="text-white/70">Valor mensal (R$)</FormLabel>
                   <FormControl>
                     <Input {...field} type="number" step="0.01" min={0} className="bg-white/5 border-white/10 text-white" />
                   </FormControl>
@@ -245,5 +289,27 @@ export default function PropostaForm({
         </Form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PacoteSummary({ pacote }: { pacote: Pacote }) {
+  return (
+    <div className="rounded-lg bg-white/5 border border-white/10 p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-mono text-white/40">{pacote.codigo}</span>
+        <div className="flex gap-1 ml-auto">
+          {pacote.ps_index_ativo && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#3B82F6" }} title="PS Index" />}
+          {pacote.ps_escuta_ativo && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#8B5CF6" }} title="PS Escuta" />}
+          {pacote.ps_cultura_ativo && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#10B981" }} title="PS Cultura" />}
+        </div>
+      </div>
+      <div className="flex gap-4 text-xs text-white/50">
+        {pacote.ciclos_index_ano && <span>{pacote.ciclos_index_ano === 999 ? "∞" : pacote.ciclos_index_ano} ciclo(s)/ano</span>}
+        {pacote.franquia_relatos_qtd != null && (
+          <span>Franquia: {pacote.franquia_relatos_qtd} relato(s) {pacote.franquia_relatos_tipo === "por_func" ? "/func" : "fixo"}</span>
+        )}
+        <span>{pacote.cobranca_tipo === "mensal" ? "Mensal" : "Anual 12x"}</span>
+      </div>
+    </div>
   );
 }

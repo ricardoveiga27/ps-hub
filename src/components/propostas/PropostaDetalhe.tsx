@@ -56,6 +56,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
 
   const snapshot = proposta.snapshot_condicoes as Record<string, unknown> | null;
   const diaVencimento = (snapshot?.dia_vencimento as number) || 10;
+  const pacoteNome = (proposta as any).crm_pacotes?.nome as string | undefined;
 
   function handleEdit(values: PropostaFormValues) {
     const bruto = values.valor_mensal * values.vidas;
@@ -70,6 +71,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
       {
         id,
         cliente_id: values.cliente_id,
+        pacote_id: values.pacote_id && values.pacote_id !== "nenhum" ? values.pacote_id : null,
         titulo: values.titulo,
         vidas: values.vidas,
         valor_mensal: values.valor_mensal,
@@ -120,19 +122,33 @@ export default function PropostaDetalheComponent({ id }: Props) {
     try {
       const hoje = new Date().toISOString().split("T")[0];
 
-      // 1. INSERT crm_contratos (trigger sync_licencas_ativas fires here)
+      // Fetch full pacote snapshot if proposta has pacote_id
+      let snapshotPacote = null;
+      const pacoteId = (proposta as any).pacote_id as string | null;
+      if (pacoteId) {
+        const { data: pacoteData } = await supabase
+          .from("crm_pacotes")
+          .select("*")
+          .eq("id", pacoteId)
+          .maybeSingle();
+        if (pacoteData) snapshotPacote = pacoteData;
+      }
+
+      // 1. INSERT crm_contratos
       const { data: contrato, error: errContrato } = await supabase
         .from("crm_contratos")
         .insert({
           cliente_id: proposta.cliente_id,
           proposta_id: proposta.id,
+          pacote_id: pacoteId,
+          snapshot_pacote: snapshotPacote,
           vidas: proposta.vidas,
           valor_mensal: proposta.valor_final,
           dia_vencimento: diaVencimento,
           data_inicio: hoje,
-          ps_index_ativo: true,
-          ps_escuta_ativo: true,
-          ps_cultura_ativo: true,
+          ps_index_ativo: snapshotPacote?.ps_index_ativo ?? true,
+          ps_escuta_ativo: snapshotPacote?.ps_escuta_ativo ?? true,
+          ps_cultura_ativo: snapshotPacote?.ps_cultura_ativo ?? true,
           status: "ativo",
         })
         .select()
@@ -172,6 +188,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
 
   const editDefaults: Partial<PropostaFormValues> = {
     cliente_id: proposta.cliente_id,
+    pacote_id: (proposta as any).pacote_id || "",
     titulo: proposta.titulo || "",
     vidas: proposta.vidas,
     valor_mensal: proposta.valor_mensal,
@@ -233,6 +250,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
           <CardHeader><CardTitle className="text-white text-base">Dados da Proposta</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <Row label="Título" value={proposta.titulo || "—"} />
+            {pacoteNome && <Row label="Pacote" value={pacoteNome} />}
             <Row label="Vidas" value={String(proposta.vidas)} />
             <Row label="Valor/vida" value={formatCurrency(proposta.valor_mensal)} />
             <Row label="Desconto" value={
