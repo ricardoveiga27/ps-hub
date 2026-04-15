@@ -1,44 +1,47 @@
 
 
-# Fix: Login travando por deadlock no useAuth
+# Corrigir Título da Página na PropostaPublica
 
 ## Problema
 
-O `onAuthStateChange` (linha 65) tem um callback `async` com `await fetchOrCreatePerfil()`. O cliente Supabase bloqueia o processamento de eventos de auth até o callback retornar, mas o callback faz queries que dependem do token — causando deadlock.
+O template HTML contém `<title>{{proposta_numero}} · {{empresa_razao_social}} · PS Hub</title>` com as variáveis já substituídas no `html_gerado`. Porém, como o React renderiza via `dangerouslySetInnerHTML` dentro do `<body>`, o `<title>` do template nunca é aplicado ao `document.title` da página — o browser continua mostrando o título padrão do app React.
 
 ## Solução
 
-No `src/hooks/useAuth.ts`:
+Adicionar extração e aplicação do `<title>` no `useEffect` existente (linhas 42-51). O título será extraído usando regex e aplicado ao `document.title`, com cleanup ao desmontar o componente.
 
-1. Remover `async/await` do callback `onAuthStateChange` — usar `setTimeout` para desacoplar a busca do perfil do fluxo de auth
-2. Manter o `getSession().then(...)` como está (esse não causa deadlock)
+## Alteração
+
+**Arquivo:** `src/pages/PropostaPublica.tsx`
+
+No `useEffect` das linhas 42-51 (que atualmente só ativa o botão de impressão), adicionar no início:
 
 ```typescript
-// ANTES (deadlock):
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  setSession(session);
-  setUser(session?.user ?? null);
-  if (session?.user) {
-    await fetchOrCreatePerfil(session.user);  // ← bloqueia
+useEffect(() => {
+  if (!html || !containerRef.current) return;
+  
+  // Extrair e aplicar o <title> do template ao document.title
+  const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+  if (titleMatch?.[1]) {
+    document.title = titleMatch[1];
   }
-  setLoading(false);
-});
-
-// DEPOIS (fire-and-forget):
-supabase.auth.onAuthStateChange((_event, session) => {
-  setSession(session);
-  setUser(session?.user ?? null);
-  if (session?.user) {
-    setTimeout(() => fetchOrCreatePerfil(session.user), 0);
-  } else {
-    setPerfil(PERFIL_VAZIO);
-    setLoading(false);
+  
+  // Ativar botão de impressão (lógica existente)
+  const printBtn = containerRef.current.querySelector('.btn-print-wrap button') as HTMLButtonElement | null;
+  if (printBtn) {
+    printBtn.removeAttribute('onclick');
+    const handler = () => window.print();
+    printBtn.addEventListener('click', handler);
+    return () => {
+      printBtn.removeEventListener('click', handler);
+      document.title = 'PS Hub'; // Restaurar título ao desmontar
+    };
   }
-});
+  
+  // Cleanup do título se não houver botão de impressão
+  return () => {
+    document.title = 'PS Hub';
+  };
+}, [html]);
 ```
-
-3. Mover `setLoading(false)` para dentro de `fetchOrCreatePerfil` (no final, após setPerfil)
-
-## Arquivo editado
-- `src/hooks/useAuth.ts` — remover async/await do onAuthStateChange
 
