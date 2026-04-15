@@ -14,18 +14,51 @@ import {
 import { useClientes } from "@/hooks/useClientes";
 import { usePacotes, type Pacote } from "@/hooks/usePacotes";
 import { useEffect, useMemo } from "react";
+import { AlertTriangle } from "lucide-react";
+
+export const DESCONTO_PCT: Record<string, number> = {
+  tabela: 0,
+  autonomia_10: 0.10,
+  autonomia_20: 0.20,
+  aprovacao_30: 0.30,
+  campanha_40: 0.40,
+  supremo_50: 0.50,
+};
+
+const NIVEL_LABELS: Record<string, { label: string; auth: string }> = {
+  tabela: { label: "Tabela", auth: "sem desconto" },
+  autonomia_10: { label: "−10% Autonomia", auth: "autonomia vendedor" },
+  autonomia_20: { label: "−20% Autonomia", auth: "autonomia vendedor" },
+  aprovacao_30: { label: "−30% ★ Aprovação", auth: "requer aprovação Ricardo" },
+  campanha_40: { label: "−40% Campanha", auth: "Ricardo + cliente SST Veiga" },
+  supremo_50: { label: "−50% Supremo", auth: "teto absoluto — Ricardo" },
+};
+
+const NIVEL_KEYS = Object.keys(DESCONTO_PCT) as [string, ...string[]];
+const REQUER_JUSTIFICATIVA = ["aprovacao_30", "campanha_40", "supremo_50"];
 
 const propostaSchema = z.object({
   cliente_id: z.string().min(1, "Selecione um cliente"),
   pacote_id: z.string().optional(),
   titulo: z.string().min(1, "Informe o título").max(200),
   vidas: z.coerce.number().min(1, "Mínimo 1 vida"),
-  valor_mensal: z.coerce.number().min(0.01, "Informe o valor por vida"),
-  desconto_tipo: z.enum(["percentual", "fixo", "nenhum"]),
-  desconto_valor: z.coerce.number().min(0).default(0),
+  valor_mensal: z.coerce.number().min(0),
+  valor_tabela: z.coerce.number().min(0).default(0),
+  nivel_desconto: z.enum(NIVEL_KEYS).default("tabela"),
+  justificativa_desconto: z.string().max(500).optional(),
   dia_vencimento: z.coerce.number().min(1).max(28),
   validade_dias: z.coerce.number().min(1).max(365),
   observacoes: z.string().max(2000).optional(),
+}).superRefine((data, ctx) => {
+  if (REQUER_JUSTIFICATIVA.includes(data.nivel_desconto)) {
+    if (!data.justificativa_desconto || data.justificativa_desconto.trim().length < 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Justificativa obrigatória para este nível de desconto (mín. 10 caracteres)",
+        path: ["justificativa_desconto"],
+      });
+    }
+  }
 });
 
 export type PropostaFormValues = z.infer<typeof propostaSchema>;
@@ -37,6 +70,10 @@ interface PropostaFormProps {
   loading?: boolean;
   defaultValues?: Partial<PropostaFormValues>;
   lockedClienteId?: string;
+}
+
+function formatBRL(v: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
 export default function PropostaForm({
@@ -53,8 +90,9 @@ export default function PropostaForm({
       titulo: "",
       vidas: 1,
       valor_mensal: 0,
-      desconto_tipo: "nenhum",
-      desconto_valor: 0,
+      valor_tabela: 0,
+      nivel_desconto: "tabela",
+      justificativa_desconto: "",
       dia_vencimento: 10,
       validade_dias: 30,
       observacoes: "",
@@ -70,8 +108,9 @@ export default function PropostaForm({
         titulo: "",
         vidas: 1,
         valor_mensal: 0,
-        desconto_tipo: "nenhum",
-        desconto_valor: 0,
+        valor_tabela: 0,
+        nivel_desconto: "tabela",
+        justificativa_desconto: "",
         dia_vencimento: 10,
         validade_dias: 30,
         observacoes: "",
@@ -82,32 +121,27 @@ export default function PropostaForm({
 
   const pacoteId = form.watch("pacote_id");
   const vidas = form.watch("vidas");
-  const valorMensal = form.watch("valor_mensal");
-  const descontoTipo = form.watch("desconto_tipo");
-  const descontoValor = form.watch("desconto_valor");
+  const nivelDesconto = form.watch("nivel_desconto");
 
   const selectedPacote = useMemo(() => {
     if (!pacoteId || !pacotesAtivos) return null;
     return pacotesAtivos.find((p) => p.id === pacoteId) || null;
   }, [pacoteId, pacotesAtivos]);
 
-  // Auto-fill valor_mensal when pacote or vidas change
+  // Auto-calculate valor_tabela and valor_mensal
   useEffect(() => {
-    if (selectedPacote && vidas > 0) {
-      form.setValue("valor_mensal", selectedPacote.preco_por_vida! * vidas);
+    if (selectedPacote?.preco_por_vida && vidas > 0) {
+      const tabela = selectedPacote.preco_por_vida * vidas;
+      const pct = DESCONTO_PCT[nivelDesconto] || 0;
+      const final = Math.round(tabela * (1 - pct) * 100) / 100;
+      form.setValue("valor_tabela", tabela);
+      form.setValue("valor_mensal", final);
     }
-  }, [selectedPacote, vidas]);
+  }, [selectedPacote, vidas, nivelDesconto]);
 
-  const valorFinal = useMemo(() => {
-    const bruto = valorMensal;
-    if (descontoTipo === "percentual" && descontoValor > 0) {
-      return bruto * (1 - descontoValor / 100);
-    }
-    if (descontoTipo === "fixo" && descontoValor > 0) {
-      return bruto - descontoValor;
-    }
-    return bruto;
-  }, [valorMensal, descontoTipo, descontoValor]);
+  const valorTabela = form.watch("valor_tabela");
+  const valorMensal = form.watch("valor_mensal");
+  const requerAprovacao = REQUER_JUSTIFICATIVA.includes(nivelDesconto);
 
   function handleSubmit(values: PropostaFormValues) {
     onSubmit(values);
@@ -195,54 +229,94 @@ export default function PropostaForm({
                 <FormItem>
                   <FormLabel className="text-white/70">Valor mensal (R$)</FormLabel>
                   <FormControl>
-                    <Input {...field} type="number" step="0.01" min={0} className="bg-white/5 border-white/10 text-white" />
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      className="bg-white/5 border-white/10 text-white"
+                      disabled={!!selectedPacote}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="desconto_tipo" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white/70">Desconto</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-[#1a1a2e] border-white/10">
-                      <SelectItem value="nenhum" className="text-white">Nenhum</SelectItem>
-                      <SelectItem value="percentual" className="text-white">Percentual (%)</SelectItem>
-                      <SelectItem value="fixo" className="text-white">Fixo (R$)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            {/* Nível de desconto */}
+            <FormField control={form.control} name="nivel_desconto" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-white/70">Nível de Desconto</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="bg-[#1a1a2e] border-white/10">
+                    {NIVEL_KEYS.map((key) => {
+                      const pct = DESCONTO_PCT[key];
+                      const valorCalc = valorTabela > 0
+                        ? formatBRL(valorTabela * (1 - pct))
+                        : "—";
+                      const info = NIVEL_LABELS[key];
+                      return (
+                        <SelectItem key={key} value={key} className="text-white">
+                          <span className="flex items-center gap-2">
+                            <span>{info.label}</span>
+                            <span className="text-white/40 text-xs">→ {valorCalc}</span>
+                            <span className="text-white/30 text-xs">({info.auth})</span>
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-              {descontoTipo !== "nenhum" && (
-                <FormField control={form.control} name="desconto_valor" render={({ field }) => (
+            {/* Valor final preview */}
+            <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-center space-y-1">
+              {valorTabela > 0 && valorTabela !== valorMensal && (
+                <div>
+                  <span className="text-white/40 text-sm line-through">{formatBRL(valorTabela)}</span>
+                  <span className="text-white/30 text-xs ml-2">valor de tabela</span>
+                </div>
+              )}
+              <div>
+                <span className="text-white/50 text-sm">Valor final mensal: </span>
+                <span className="text-lg font-bold text-emerald-400">
+                  {formatBRL(Math.max(0, valorMensal))}
+                </span>
+              </div>
+            </div>
+
+            {/* Justificativa condicional */}
+            {requerAprovacao && (
+              <>
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                  <span className="text-amber-300 text-sm">
+                    Este desconto requer aprovação prévia de <strong>Ricardo Veiga</strong> antes de enviar ao cliente.
+                  </span>
+                </div>
+                <FormField control={form.control} name="justificativa_desconto" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white/70">
-                      {descontoTipo === "percentual" ? "% Desconto" : "Valor (R$)"}
-                    </FormLabel>
+                    <FormLabel className="text-white/70">Justificativa do desconto *</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" step="0.01" min={0} className="bg-white/5 border-white/10 text-white" />
+                      <Textarea
+                        {...field}
+                        className="bg-white/5 border-white/10 text-white"
+                        rows={3}
+                        placeholder="Explique o motivo deste desconto (mín. 10 caracteres)..."
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-              )}
-            </div>
-
-            <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-center">
-              <span className="text-white/50 text-sm">Valor final mensal: </span>
-              <span className="text-lg font-bold text-emerald-400">
-                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Math.max(0, valorFinal))}
-              </span>
-            </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="dia_vencimento" render={({ field }) => (
