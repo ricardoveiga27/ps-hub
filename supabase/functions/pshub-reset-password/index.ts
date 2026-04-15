@@ -69,12 +69,8 @@ Deno.serve(async (req) => {
 
     const publicAppUrl = Deno.env.get("PUBLIC_APP_URL") || "";
 
-    const { error } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: {
-        redirectTo: `${publicAppUrl}/app/login`,
-      },
+    const { error } = await adminClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${publicAppUrl}/app/login`,
     });
 
     if (error) {
