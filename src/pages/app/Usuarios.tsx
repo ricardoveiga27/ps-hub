@@ -208,7 +208,7 @@ export default function Usuarios() {
                 <TableHead className="text-white/60 text-center">Financeiro</TableHead>
                 <TableHead className="text-white/60 text-center">Operador</TableHead>
                 <TableHead className="text-white/60 text-center">Ativo</TableHead>
-              </TableRow>
+                <TableHead className="text-white/60 text-center">Ações</TableHead>
             </TableHeader>
             <TableBody>
               {usuarios.map((u) => (
@@ -249,11 +249,27 @@ export default function Usuarios() {
                       }}
                     />
                   </TableCell>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-white/60 hover:text-white"
+                      disabled={resettingPassword === u.email}
+                      onClick={() => handleResetPassword(u.email)}
+                    >
+                      {resettingPassword === u.email ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <KeyRound className="h-3.5 w-3.5" />
+                      )}
+                      Redefinir Senha
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {usuarios.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-white/40 py-8">
+                  <TableCell colSpan={7} className="text-center text-white/40 py-8">
                     Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
