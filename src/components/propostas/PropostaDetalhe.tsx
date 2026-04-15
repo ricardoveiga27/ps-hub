@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Edit, Trash2, Send, Check, X, FileText } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Send, Check, X, FileText, Link2, Copy, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -14,8 +15,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useProposta, useUpdateProposta, useDeleteProposta } from "@/hooks/usePropostas";
+import { usePropostaLinks, useUpdatePropostaLink } from "@/hooks/usePropostaLinks";
 import { supabase } from "@/integrations/supabase/client";
 import PropostaForm, { type PropostaFormValues } from "./PropostaForm";
+import GerarLinkModal from "./GerarLinkModal";
 
 const STATUS_BADGE: Record<string, string> = {
   rascunho: "bg-white/10 text-white/60",
@@ -23,6 +26,13 @@ const STATUS_BADGE: Record<string, string> = {
   aceita: "bg-emerald-500/20 text-emerald-400",
   recusada: "bg-red-500/20 text-red-400",
   expirada: "bg-yellow-500/20 text-yellow-400",
+};
+
+const LINK_STATUS_BADGE: Record<string, string> = {
+  aguardando: "bg-blue-500/20 text-blue-400",
+  aceita: "bg-emerald-500/20 text-emerald-400",
+  expirada: "bg-white/10 text-white/50",
+  cancelada: "bg-red-500/20 text-red-400",
 };
 
 function formatCurrency(v: number) {
@@ -43,11 +53,14 @@ export default function PropostaDetalheComponent({ id }: Props) {
   const { data: proposta, isLoading, refetch } = useProposta(id);
   const updateMutation = useUpdateProposta();
   const deleteMutation = useDeleteProposta();
+  const { data: links } = usePropostaLinks(id);
+  const updateLink = useUpdatePropostaLink();
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [recusaOpen, setRecusaOpen] = useState(false);
   const [aceitarOpen, setAceitarOpen] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [motivoRecusa, setMotivoRecusa] = useState("");
   const [converting, setConverting] = useState(false);
 
@@ -57,6 +70,8 @@ export default function PropostaDetalheComponent({ id }: Props) {
   const snapshot = proposta.snapshot_condicoes as Record<string, unknown> | null;
   const diaVencimento = (snapshot?.dia_vencimento as number) || 10;
   const pacoteNome = (proposta as any).crm_pacotes?.nome as string | undefined;
+  const cliente = (proposta as any).crm_clientes;
+  const pacote = (proposta as any).crm_pacotes;
 
   function handleEdit(values: PropostaFormValues) {
     const bruto = values.valor_mensal * values.vidas;
@@ -121,20 +136,14 @@ export default function PropostaDetalheComponent({ id }: Props) {
     setConverting(true);
     try {
       const hoje = new Date().toISOString().split("T")[0];
-
-      // Fetch full pacote snapshot if proposta has pacote_id
       let snapshotPacote = null;
       const pacoteId = (proposta as any).pacote_id as string | null;
       if (pacoteId) {
         const { data: pacoteData } = await supabase
-          .from("crm_pacotes")
-          .select("*")
-          .eq("id", pacoteId)
-          .maybeSingle();
+          .from("crm_pacotes").select("*").eq("id", pacoteId).maybeSingle();
         if (pacoteData) snapshotPacote = pacoteData;
       }
 
-      // 1. INSERT crm_contratos
       const { data: contrato, error: errContrato } = await supabase
         .from("crm_contratos")
         .insert({
@@ -151,11 +160,9 @@ export default function PropostaDetalheComponent({ id }: Props) {
           ps_cultura_ativo: snapshotPacote?.ps_cultura_ativo ?? true,
           status: "ativo",
         })
-        .select()
-        .single();
+        .select().single();
       if (errContrato) throw errContrato;
 
-      // 2. INSERT crm_assinaturas
       const { error: errAss } = await supabase.from("crm_assinaturas").insert({
         cliente_id: proposta.cliente_id,
         contrato_id: contrato.id,
@@ -166,14 +173,12 @@ export default function PropostaDetalheComponent({ id }: Props) {
       });
       if (errAss) throw errAss;
 
-      // 3. UPDATE proposta status
       const { error: errProp } = await supabase
         .from("crm_propostas")
         .update({ status: "aceita", aceita_em: new Date().toISOString() })
         .eq("id", id);
       if (errProp) throw errProp;
 
-      // Update client status to ativo
       await supabase.from("crm_clientes").update({ status: "ativo" }).eq("id", proposta.cliente_id);
 
       toast.success("Proposta aceita! Contrato e assinatura criados.");
@@ -185,6 +190,20 @@ export default function PropostaDetalheComponent({ id }: Props) {
       setConverting(false);
     }
   }
+
+  function handleCopyLink(token: string) {
+    navigator.clipboard.writeText(`${window.location.origin}/proposta/${token}`);
+    toast.success("Link copiado!");
+  }
+
+  function handleCancelLink(linkId: string) {
+    updateLink.mutate({ id: linkId, status: "cancelada" }, {
+      onSuccess: () => toast.success("Link cancelado"),
+      onError: (e) => toast.error("Erro: " + e.message),
+    });
+  }
+
+  const canGenerateLink = ["rascunho", "enviada", "aceita"].includes(proposta.status);
 
   const editDefaults: Partial<PropostaFormValues> = {
     cliente_id: proposta.cliente_id,
@@ -218,6 +237,11 @@ export default function PropostaDetalheComponent({ id }: Props) {
           </p>
         </div>
         <div className="flex gap-2">
+          {canGenerateLink && (
+            <Button variant="outline" onClick={() => setLinkModalOpen(true)} className="border-white/10 text-white hover:bg-white/5">
+              <Link2 className="h-4 w-4 mr-2" /> Gerar Link
+            </Button>
+          )}
           {proposta.status === "rascunho" && (
             <>
               <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
@@ -276,21 +300,68 @@ export default function PropostaDetalheComponent({ id }: Props) {
         </Card>
       </div>
 
-      {/* Aceitar contrato gerado link */}
       {proposta.status === "aceita" && (
         <Card className="border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="flex items-center gap-3 py-4">
             <FileText className="h-5 w-5 text-emerald-400" />
             <span className="text-emerald-300 text-sm">Contrato gerado automaticamente a partir desta proposta.</span>
-            <Button variant="link" className="text-emerald-400 ml-auto" onClick={() => navigate("/app/contratos")}>
-              Ver contratos →
-            </Button>
+            <Button variant="link" className="text-emerald-400 ml-auto" onClick={() => navigate("/app/contratos")}>Ver contratos →</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Links gerados */}
+      {links && links.length > 0 && (
+        <Card className="border-white/10 bg-white/5">
+          <CardHeader><CardTitle className="text-white text-base">Links gerados</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-white/10">
+                  <TableHead className="text-white/50">Template</TableHead>
+                  <TableHead className="text-white/50">Status</TableHead>
+                  <TableHead className="text-white/50">Criado em</TableHead>
+                  <TableHead className="text-white/50">Expira em</TableHead>
+                  <TableHead className="text-white/50 text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {links.map((l) => (
+                  <TableRow key={l.id} className="border-white/10">
+                    <TableCell className="text-white">{l.crm_proposta_templates?.nome || "—"}</TableCell>
+                    <TableCell>
+                      <Badge className={LINK_STATUS_BADGE[l.status] || "bg-white/10 text-white/50"}>{l.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-white/60 text-sm">{formatDate(l.criado_em)}</TableCell>
+                    <TableCell className="text-white/60 text-sm">{formatDate(l.expira_em)}</TableCell>
+                    <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleCopyLink(l.token)} className="text-white/50 hover:text-white h-8 w-8">
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      {l.status === "aguardando" && (
+                        <Button variant="ghost" size="icon" onClick={() => handleCancelLink(l.id)} className="text-red-400/60 hover:text-red-400 h-8 w-8">
+                          <Ban className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
 
       {/* Dialogs */}
       <PropostaForm open={editOpen} onOpenChange={setEditOpen} onSubmit={handleEdit} defaultValues={editDefaults} loading={updateMutation.isPending} />
+
+      <GerarLinkModal
+        open={linkModalOpen}
+        onOpenChange={setLinkModalOpen}
+        proposta={proposta}
+        cliente={cliente}
+        pacote={pacote}
+      />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
@@ -310,7 +381,7 @@ export default function PropostaDetalheComponent({ id }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Aceitar proposta e gerar contrato?</AlertDialogTitle>
             <AlertDialogDescription className="text-white/50">
-              Será criado um contrato ativo com assinatura para o cliente. O trigger atualizará automaticamente as licenças ativas.
+              Será criado um contrato ativo com assinatura para o cliente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -324,16 +395,8 @@ export default function PropostaDetalheComponent({ id }: Props) {
 
       <Dialog open={recusaOpen} onOpenChange={setRecusaOpen}>
         <DialogContent className="bg-[#1a1a2e] border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle>Recusar proposta</DialogTitle>
-          </DialogHeader>
-          <Textarea
-            placeholder="Motivo da recusa..."
-            value={motivoRecusa}
-            onChange={(e) => setMotivoRecusa(e.target.value)}
-            className="bg-white/5 border-white/10 text-white"
-            rows={4}
-          />
+          <DialogHeader><DialogTitle>Recusar proposta</DialogTitle></DialogHeader>
+          <Textarea placeholder="Motivo da recusa..." value={motivoRecusa} onChange={(e) => setMotivoRecusa(e.target.value)} className="bg-white/5 border-white/10 text-white" rows={4} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRecusaOpen(false)} className="border-white/10 text-white hover:bg-white/5">Cancelar</Button>
             <Button onClick={handleRecusar} disabled={updateMutation.isPending} className="bg-red-600 hover:bg-red-700">Recusar</Button>
