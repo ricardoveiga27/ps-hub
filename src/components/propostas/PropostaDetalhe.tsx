@@ -17,7 +17,7 @@ import {
 import { useProposta, useUpdateProposta, useDeleteProposta } from "@/hooks/usePropostas";
 import { usePropostaLinks, useUpdatePropostaLink } from "@/hooks/usePropostaLinks";
 import { supabase } from "@/integrations/supabase/client";
-import PropostaForm, { type PropostaFormValues } from "./PropostaForm";
+import PropostaForm, { type PropostaFormValues, DESCONTO_PCT } from "./PropostaForm";
 import GerarLinkModal from "./GerarLinkModal";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -33,6 +33,24 @@ const LINK_STATUS_BADGE: Record<string, string> = {
   aceita: "bg-emerald-500/20 text-emerald-400",
   expirada: "bg-white/10 text-white/50",
   cancelada: "bg-red-500/20 text-red-400",
+};
+
+const NIVEL_BADGE_COLORS: Record<string, string> = {
+  tabela: "bg-white/10 text-white/60",
+  autonomia_10: "bg-emerald-500/20 text-emerald-400",
+  autonomia_20: "bg-emerald-500/20 text-emerald-400",
+  aprovacao_30: "bg-amber-500/20 text-amber-400",
+  campanha_40: "bg-orange-500/20 text-orange-400",
+  supremo_50: "bg-purple-500/20 text-purple-400",
+};
+
+const NIVEL_LABELS: Record<string, string> = {
+  tabela: "Tabela (0%)",
+  autonomia_10: "−10% Autonomia",
+  autonomia_20: "−20% Autonomia",
+  aprovacao_30: "−30% Aprovação",
+  campanha_40: "−40% Campanha",
+  supremo_50: "−50% Supremo",
 };
 
 function formatCurrency(v: number) {
@@ -73,14 +91,18 @@ export default function PropostaDetalheComponent({ id }: Props) {
   const cliente = (proposta as any).crm_clientes;
   const pacote = (proposta as any).crm_pacotes;
 
+  const nivelDesconto = (proposta as any).nivel_desconto as string | null;
+  const valorTabela = (proposta as any).valor_tabela as number | null;
+  const justificativaDesconto = (proposta as any).justificativa_desconto as string | null;
+  const aprovador = (proposta as any).aprovador as string | null;
+
   function handleEdit(values: PropostaFormValues) {
-    const bruto = values.valor_mensal * values.vidas;
-    let valorFinal = bruto;
-    if (values.desconto_tipo === "percentual" && values.desconto_valor > 0) {
-      valorFinal = bruto * (1 - values.desconto_valor / 100);
-    } else if (values.desconto_tipo === "fixo" && values.desconto_valor > 0) {
-      valorFinal = bruto - values.desconto_valor;
-    }
+    const pct = DESCONTO_PCT[values.nivel_desconto] || 0;
+    const vTabela = values.valor_tabela || values.valor_mensal;
+    const valorFinal = Math.round(vTabela * (1 - pct) * 100) / 100;
+    const aprov = ["aprovacao_30", "campanha_40", "supremo_50"].includes(values.nivel_desconto)
+      ? "Ricardo Veiga"
+      : null;
 
     updateMutation.mutate(
       {
@@ -91,8 +113,10 @@ export default function PropostaDetalheComponent({ id }: Props) {
         vidas: values.vidas,
         valor_mensal: values.valor_mensal,
         valor_final: Math.max(0, valorFinal),
-        desconto_tipo: values.desconto_tipo === "nenhum" ? null : values.desconto_tipo,
-        desconto_valor: values.desconto_tipo === "nenhum" ? null : values.desconto_valor,
+        valor_tabela: vTabela,
+        nivel_desconto: values.nivel_desconto as any,
+        justificativa_desconto: values.justificativa_desconto || null,
+        aprovador: aprov,
         validade_dias: values.validade_dias,
         observacoes: values.observacoes || null,
         snapshot_condicoes: { dia_vencimento: values.dia_vencimento },
@@ -211,12 +235,16 @@ export default function PropostaDetalheComponent({ id }: Props) {
     titulo: proposta.titulo || "",
     vidas: proposta.vidas,
     valor_mensal: proposta.valor_mensal,
-    desconto_tipo: (proposta.desconto_tipo as any) || "nenhum",
-    desconto_valor: proposta.desconto_valor || 0,
+    valor_tabela: valorTabela || proposta.valor_mensal,
+    nivel_desconto: (nivelDesconto as any) || "tabela",
+    justificativa_desconto: justificativaDesconto || "",
     dia_vencimento: diaVencimento,
     validade_dias: proposta.validade_dias,
     observacoes: proposta.observacoes || "",
   };
+
+  // Compute desconto aplicado
+  const descontoAplicado = valorTabela ? valorTabela - proposta.valor_final : 0;
 
   return (
     <div className="space-y-6">
@@ -278,11 +306,20 @@ export default function PropostaDetalheComponent({ id }: Props) {
             <Row label="Título" value={proposta.titulo || "—"} />
             {pacoteNome && <Row label="Pacote" value={pacoteNome} />}
             <Row label="Vidas" value={String(proposta.vidas)} />
-            <Row label="Valor/vida" value={formatCurrency(proposta.valor_mensal)} />
-            <Row label="Desconto" value={
-              proposta.desconto_tipo === "percentual" ? `${proposta.desconto_valor}%` :
-              proposta.desconto_tipo === "fixo" ? formatCurrency(proposta.desconto_valor || 0) : "Nenhum"
-            } />
+            {valorTabela != null && valorTabela > 0 && (
+              <Row label="Valor de tabela" value={formatCurrency(valorTabela)} />
+            )}
+            {nivelDesconto && nivelDesconto !== "tabela" && (
+              <div className="flex justify-between items-center">
+                <span className="text-white/50">Nível de desconto</span>
+                <Badge className={NIVEL_BADGE_COLORS[nivelDesconto] || "bg-white/10 text-white/60"}>
+                  {NIVEL_LABELS[nivelDesconto] || nivelDesconto}
+                </Badge>
+              </div>
+            )}
+            {descontoAplicado > 0 && (
+              <Row label="Desconto aplicado" value={`− ${formatCurrency(descontoAplicado)}`} />
+            )}
             <Row label="Valor final mensal" value={formatCurrency(proposta.valor_final)} highlight />
             <Row label="Dia vencimento" value={String(diaVencimento)} />
             <Row label="Validade" value={`${proposta.validade_dias} dias`} />
@@ -298,9 +335,20 @@ export default function PropostaDetalheComponent({ id }: Props) {
             <Row label="Recusada em" value={formatDate(proposta.recusada_em)} />
             {proposta.motivo_recusa && <Row label="Motivo recusa" value={proposta.motivo_recusa} />}
             {proposta.observacoes && <Row label="Observações" value={proposta.observacoes} />}
+            {aprovador && <Row label="Aprovador" value={aprovador} />}
           </CardContent>
         </Card>
       </div>
+
+      {/* Justificativa */}
+      {justificativaDesconto && (
+        <Card className="border-amber-500/20 bg-amber-500/5">
+          <CardContent className="py-4">
+            <p className="text-amber-300/70 text-xs font-medium mb-1">Justificativa do desconto</p>
+            <p className="text-white/80 text-sm italic border-l-2 border-amber-500/40 pl-3">{justificativaDesconto}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {proposta.status === "aceita" && (
         <Card className="border-emerald-500/20 bg-emerald-500/5">

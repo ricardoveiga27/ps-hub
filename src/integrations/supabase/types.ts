@@ -670,13 +670,16 @@ export type Database = {
       crm_propostas: {
         Row: {
           aceita_em: string | null
+          aprovador: string | null
           cliente_id: string
           created_at: string
           desconto_tipo: string | null
           desconto_valor: number | null
           enviada_em: string | null
           id: string
+          justificativa_desconto: string | null
           motivo_recusa: string | null
+          nivel_desconto: Database["public"]["Enums"]["desconto_nivel"] | null
           numero_proposta: string | null
           observacoes: string | null
           pacote_id: string | null
@@ -688,17 +691,21 @@ export type Database = {
           validade_dias: number
           valor_final: number
           valor_mensal: number
+          valor_tabela: number | null
           vidas: number
         }
         Insert: {
           aceita_em?: string | null
+          aprovador?: string | null
           cliente_id: string
           created_at?: string
           desconto_tipo?: string | null
           desconto_valor?: number | null
           enviada_em?: string | null
           id?: string
+          justificativa_desconto?: string | null
           motivo_recusa?: string | null
+          nivel_desconto?: Database["public"]["Enums"]["desconto_nivel"] | null
           numero_proposta?: string | null
           observacoes?: string | null
           pacote_id?: string | null
@@ -710,17 +717,21 @@ export type Database = {
           validade_dias?: number
           valor_final: number
           valor_mensal: number
+          valor_tabela?: number | null
           vidas: number
         }
         Update: {
           aceita_em?: string | null
+          aprovador?: string | null
           cliente_id?: string
           created_at?: string
           desconto_tipo?: string | null
           desconto_valor?: number | null
           enviada_em?: string | null
           id?: string
+          justificativa_desconto?: string | null
           motivo_recusa?: string | null
+          nivel_desconto?: Database["public"]["Enums"]["desconto_nivel"] | null
           numero_proposta?: string | null
           observacoes?: string | null
           pacote_id?: string | null
@@ -732,6 +743,7 @@ export type Database = {
           validade_dias?: number
           valor_final?: number
           valor_mensal?: number
+          valor_tabela?: number | null
           vidas?: number
         }
         Relationships: [
@@ -890,7 +902,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      desconto_nivel:
+        | "tabela"
+        | "autonomia_10"
+        | "autonomia_20"
+        | "aprovacao_30"
+        | "campanha_40"
+        | "supremo_50"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1017,6 +1035,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      desconto_nivel: [
+        "tabela",
+        "autonomia_10",
+        "autonomia_20",
+        "aprovacao_30",
+        "campanha_40",
+        "supremo_50",
+      ],
+    },
   },
 } as const

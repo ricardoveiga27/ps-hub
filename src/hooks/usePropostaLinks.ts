@@ -101,21 +101,18 @@ export function buildPropostaVariables(
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
   const hoje = new Date();
 
-  const valorTabela = pacote?.preco_por_vida
-    ? pacote.preco_por_vida * proposta.vidas
-    : proposta.valor_mensal * proposta.vidas;
+  const DESCONTO_PCT: Record<string, number> = {
+    tabela: 0, autonomia_10: 0.10, autonomia_20: 0.20,
+    aprovacao_30: 0.30, campanha_40: 0.40, supremo_50: 0.50,
+  };
 
-  const descontoPct =
-    proposta.desconto_tipo === "percentual" && proposta.desconto_valor
-      ? `${proposta.desconto_valor}%`
-      : "—";
+  const valorTabela = proposta.valor_tabela
+    ?? (pacote?.preco_por_vida ? pacote.preco_por_vida * proposta.vidas : proposta.valor_mensal * proposta.vidas);
+  const valorFinal = proposta.valor_final ?? proposta.valor_mensal ?? valorTabela;
 
-  const descontoValor =
-    proposta.desconto_tipo === "fixo" && proposta.desconto_valor
-      ? fmt(proposta.desconto_valor)
-      : proposta.desconto_tipo === "percentual" && proposta.desconto_valor
-        ? fmt(valorTabela * (proposta.desconto_valor / 100))
-        : "—";
+  const nivelDesconto = proposta.nivel_desconto || "tabela";
+  const descontoPctNum = DESCONTO_PCT[nivelDesconto] ? DESCONTO_PCT[nivelDesconto] * 100 : 0;
+  const valorDesconto = valorTabela - valorFinal;
 
   const validadeDate = new Date();
   validadeDate.setDate(validadeDate.getDate() + (proposta.validade_dias || 30));
@@ -127,11 +124,11 @@ export function buildPropostaVariables(
     proposta_numero: proposta.numero_proposta || "—",
     proposta_titulo: proposta.titulo || "—",
     proposta_vidas: String(proposta.vidas),
-    proposta_valor_por_vida: fmt(proposta.valor_mensal),
+    proposta_valor_por_vida: fmt(valorFinal / proposta.vidas),
     proposta_valor_tabela: fmt(valorTabela),
-    proposta_valor_desconto: descontoValor,
-    proposta_desconto_pct: descontoPct,
-    proposta_valor_mensal: fmt(proposta.valor_final),
+    proposta_valor_desconto: valorDesconto > 0 ? fmt(valorDesconto) : "—",
+    proposta_desconto_pct: descontoPctNum > 0 ? `${descontoPctNum}%` : "Nenhum",
+    proposta_valor_mensal: fmt(valorFinal),
     proposta_validade: validadeDate.toLocaleDateString("pt-BR"),
     pacote_nome: pacote?.nome || "—",
     pacote_ciclos_index:

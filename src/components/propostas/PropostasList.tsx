@@ -16,7 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { usePropostas, useCreateProposta, useDeleteProposta } from "@/hooks/usePropostas";
-import PropostaForm, { type PropostaFormValues } from "./PropostaForm";
+import PropostaForm, { type PropostaFormValues, DESCONTO_PCT } from "./PropostaForm";
 
 const STATUS_BADGE: Record<string, string> = {
   rascunho: "bg-white/10 text-white/60",
@@ -45,13 +45,12 @@ export default function PropostasList() {
   const deleteMutation = useDeleteProposta();
 
   function handleCreate(values: PropostaFormValues) {
-    const bruto = values.valor_mensal * values.vidas;
-    let valorFinal = bruto;
-    if (values.desconto_tipo === "percentual" && values.desconto_valor > 0) {
-      valorFinal = bruto * (1 - values.desconto_valor / 100);
-    } else if (values.desconto_tipo === "fixo" && values.desconto_valor > 0) {
-      valorFinal = bruto - values.desconto_valor;
-    }
+    const pct = DESCONTO_PCT[values.nivel_desconto] || 0;
+    const valorTabela = values.valor_tabela || values.valor_mensal;
+    const valorFinal = Math.round(valorTabela * (1 - pct) * 100) / 100;
+    const aprovador = ["aprovacao_30", "campanha_40", "supremo_50"].includes(values.nivel_desconto)
+      ? "Ricardo Veiga"
+      : null;
 
     createMutation.mutate(
       {
@@ -61,8 +60,10 @@ export default function PropostasList() {
         vidas: values.vidas,
         valor_mensal: values.valor_mensal,
         valor_final: Math.max(0, valorFinal),
-        desconto_tipo: values.desconto_tipo === "nenhum" ? null : values.desconto_tipo,
-        desconto_valor: values.desconto_tipo === "nenhum" ? null : values.desconto_valor,
+        valor_tabela: valorTabela,
+        nivel_desconto: values.nivel_desconto as any,
+        justificativa_desconto: values.justificativa_desconto || null,
+        aprovador,
         validade_dias: values.validade_dias,
         observacoes: values.observacoes || null,
         snapshot_condicoes: { dia_vencimento: values.dia_vencimento },
