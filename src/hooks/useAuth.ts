@@ -49,6 +49,7 @@ export function useAuth() {
       if (!error) {
         setPerfil({ ...PERFIL_VAZIO, is_ativo: true, nome, email });
       } else {
+        console.error("[useAuth] Erro ao inserir perfil:", error.message, error.details);
         const { data: retry } = await supabase
           .from("crm_usuarios")
           .select("is_admin, is_comercial, is_financeiro, is_operador, is_ativo, nome, email")
