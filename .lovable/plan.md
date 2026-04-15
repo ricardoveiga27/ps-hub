@@ -1,30 +1,61 @@
 
 
-# Exibir convites pendentes e reenviar convites
+# Fix: Usuários auth sem registro em crm_usuarios
 
-## Problema
-Usuários convidados que ainda não aceitaram o convite não aparecem na tabela `crm_usuarios` (são criados apenas no primeiro login). Não há como ver convites pendentes nem reenviá-los.
+## Diagnóstico
 
-## Solução
+Os 2 usuários (michelle, ricardo.veiga27) **foram** criados por convite (`invited_at` preenchido) e confirmaram email. Porém o `fetchOrCreatePerfil` no cliente falhou silenciosamente — provavelmente por timing: o token do convite foi consumido no `/verify`, mas a sessão pode não ter sido estabelecida a tempo para a inserção funcionar via RLS.
 
-### 1. Nova Edge Function: `pshub-list-pending-invites`
-Lista usuários do `auth.users` que têm `invited_at` preenchido mas `email_confirmed_at` nulo. Usa service role para consultar `auth.users`. Retorna `[{ id, email, nome, invited_at }]`.
+## Solução (3 partes)
 
-- Valida que o chamador é admin (mesmo padrão do `pshub-invite-user`)
-- Query: `SELECT id, email, raw_user_meta_data->>'nome', invited_at FROM auth.users WHERE invited_at IS NOT NULL AND email_confirmed_at IS NULL`
+### 1. Trigger automático no banco (prevenção definitiva)
 
-### 2. Atualizar Edge Function: `pshub-invite-user`
-Adicionar suporte a reenvio: se o body incluir `resend: true`, em vez de `inviteUserByEmail`, chamar `adminClient.auth.admin.generateLink({ type: 'invite', email })` ou simplesmente re-invocar `inviteUserByEmail` (que reenvia o email se o usuário já existe mas não confirmou).
+Criar trigger `AFTER INSERT ON auth.users` que auto-cria o registro em `crm_usuarios`. Isso garante que **todo** usuário criado no auth (convite, signup, etc.) tenha registro no CRM, independente do cliente.
 
-### 3. Atualizar `src/pages/app/Usuarios.tsx`
-- Adicionar query para buscar convites pendentes via `pshub-list-pending-invites`
-- Exibir seção "Convites Pendentes" abaixo da tabela de usuários ativos
-- Cada linha mostra: nome, email, data do convite, badge "pendente", botão "Reenviar"
-- Botão "Reenviar" chama `pshub-invite-user` com `{ email, nome, resend: true }`
-- Invalidar query de pendentes após reenvio ou novo convite
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.crm_usuarios (id, nome, email, is_ativo)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'nome', split_part(NEW.email, '@', 1)),
+    NEW.email,
+    true
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_auth_user();
+```
+
+### 2. Sincronizar os 2 usuários existentes agora
+
+Inserir via migration os registros faltantes:
+
+```sql
+INSERT INTO public.crm_usuarios (id, nome, email, is_ativo)
+SELECT 
+  au.id,
+  COALESCE(au.raw_user_meta_data->>'nome', split_part(au.email, '@', 1)),
+  au.email,
+  true
+FROM auth.users au
+WHERE NOT EXISTS (SELECT 1 FROM public.crm_usuarios cu WHERE cu.id = au.id)
+ON CONFLICT (id) DO NOTHING;
+```
+
+### 3. Melhorar log de erro no `fetchOrCreatePerfil`
+
+Em `src/hooks/useAuth.ts`, adicionar `console.error` quando a inserção falha, para não engolir erros silenciosamente.
 
 ## Arquivos
-1. `supabase/functions/pshub-list-pending-invites/index.ts` — nova edge function
-2. `supabase/functions/pshub-invite-user/index.ts` — adicionar suporte a reenvio
-3. `src/pages/app/Usuarios.tsx` — seção de convites pendentes + botão reenviar
+
+1. **Migração SQL** — trigger + sync dos usuários existentes
+2. `src/hooks/useAuth.ts` — log de erro na inserção
 
