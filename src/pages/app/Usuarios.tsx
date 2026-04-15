@@ -209,6 +209,7 @@ export default function Usuarios() {
                 <TableHead className="text-white/60 text-center">Operador</TableHead>
                 <TableHead className="text-white/60 text-center">Ativo</TableHead>
                 <TableHead className="text-white/60 text-center">Ações</TableHead>
+              </TableRow>
             </TableHeader>
             <TableBody>
               {usuarios.map((u) => (
