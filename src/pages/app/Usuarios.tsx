@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, UserPlus, ShieldAlert, RefreshCw, Clock } from "lucide-react";
+import { Loader2, UserPlus, ShieldAlert, RefreshCw, Clock, KeyRound } from "lucide-react";
 
 type CrmUsuario = {
   id: string;
@@ -90,6 +90,26 @@ export default function Usuarios() {
   });
 
   const [resending, setResending] = useState<string | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<string | null>(null);
+
+  const handleResetPassword = async (email: string) => {
+    setResettingPassword(email);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("pshub-reset-password", {
+        body: { email },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      const body = res.data as { ok?: boolean; error?: string };
+      if (body?.error) throw new Error(body.error);
+      toast({ title: "Email enviado", description: `Redefinição de senha enviada para ${email}` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Erro ao enviar reset", description: err.message });
+    } finally {
+      setResettingPassword(null);
+    }
+  };
 
   const handleResendInvite = async (email: string, nome: string) => {
     setResending(email);
@@ -188,6 +208,7 @@ export default function Usuarios() {
                 <TableHead className="text-white/60 text-center">Financeiro</TableHead>
                 <TableHead className="text-white/60 text-center">Operador</TableHead>
                 <TableHead className="text-white/60 text-center">Ativo</TableHead>
+                <TableHead className="text-white/60 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,11 +250,27 @@ export default function Usuarios() {
                       }}
                     />
                   </TableCell>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-white/60 hover:text-white"
+                      disabled={resettingPassword === u.email}
+                      onClick={() => handleResetPassword(u.email)}
+                    >
+                      {resettingPassword === u.email ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <KeyRound className="h-3.5 w-3.5" />
+                      )}
+                      Redefinir Senha
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {usuarios.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-white/40 py-8">
+                  <TableCell colSpan={7} className="text-center text-white/40 py-8">
                     Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
