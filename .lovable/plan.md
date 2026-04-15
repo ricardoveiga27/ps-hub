@@ -1,61 +1,50 @@
 
 
-# Fix: Usuários auth sem registro em crm_usuarios
+# Reset de Senha com Email Customizado em PT-BR
 
-## Diagnóstico
+## Contexto
+Os usuários Michele e JOAO tESTE foram criados por convite mas nunca definiram senha. Precisamos:
+1. Botão "Redefinir Senha" na tabela de usuários
+2. Email customizado e bonito em português BR (não o padrão do Supabase)
 
-Os 2 usuários (michelle, ricardo.veiga27) **foram** criados por convite (`invited_at` preenchido) e confirmaram email. Porém o `fetchOrCreatePerfil` no cliente falhou silenciosamente — provavelmente por timing: o token do convite foi consumido no `/verify`, mas a sessão pode não ter sido estabelecida a tempo para a inserção funcionar via RLS.
+## Pré-requisito: Domínio de Email
+O projeto ainda não tem domínio de email configurado. Para enviar emails personalizados (não o template padrão), é necessário configurar um domínio primeiro. Sem isso, os emails de reset usarão o template genérico do sistema.
 
-## Solução (3 partes)
+**Primeiro passo:** Configurar o domínio de email no Lovable Cloud. Você verá um botão para iniciar essa configuração.
 
-### 1. Trigger automático no banco (prevenção definitiva)
+## Implementação
 
-Criar trigger `AFTER INSERT ON auth.users` que auto-cria o registro em `crm_usuarios`. Isso garante que **todo** usuário criado no auth (convite, signup, etc.) tenha registro no CRM, independente do cliente.
+### 1. Nova Edge Function: `pshub-reset-password`
+- Recebe `{ email }` do admin autenticado
+- Valida que o chamador é admin (mesmo padrão das outras functions)
+- Usa `adminClient.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } })` para gerar o link de recovery
+- Retorna sucesso
 
-```sql
-CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.crm_usuarios (id, nome, email, is_ativo)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nome', split_part(NEW.email, '@', 1)),
-    NEW.email,
-    true
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+### 2. Configuração de Email Personalizado
+Após configurar o domínio:
+- Scaffold dos templates de auth email
+- Customizar o template de **recovery** em português BR com a identidade visual do PS Hub:
+  - Cores: primária `hsl(235, 85%, 42%)` → violeta/azul, accent verde `hsl(142, 100%, 42%)`
+  - Fonte: DM Sans / Syne
+  - Logo e nome "PS Hub"
+  - Texto: "Olá, [nome]! Recebemos uma solicitação para redefinir sua senha..."
+  - Botão CTA: "Redefinir minha senha"
+  - Fundo do email: branco (#ffffff)
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_auth_user();
-```
+### 3. Botão na Tela de Usuários (`Usuarios.tsx`)
+- Adicionar coluna "Ações" na tabela de usuários ativos
+- Botão com ícone `Mail` → "Enviar reset de senha"
+- Ao clicar, chama a edge function `pshub-reset-password`
+- Feedback via toast: "Email de redefinição enviado para {email}"
 
-### 2. Sincronizar os 2 usuários existentes agora
+### Arquivos
+1. `supabase/functions/pshub-reset-password/index.ts` — nova edge function
+2. `src/pages/app/Usuarios.tsx` — botão de reset na tabela
+3. Templates de auth email (após configuração do domínio)
 
-Inserir via migration os registros faltantes:
-
-```sql
-INSERT INTO public.crm_usuarios (id, nome, email, is_ativo)
-SELECT 
-  au.id,
-  COALESCE(au.raw_user_meta_data->>'nome', split_part(au.email, '@', 1)),
-  au.email,
-  true
-FROM auth.users au
-WHERE NOT EXISTS (SELECT 1 FROM public.crm_usuarios cu WHERE cu.id = au.id)
-ON CONFLICT (id) DO NOTHING;
-```
-
-### 3. Melhorar log de erro no `fetchOrCreatePerfil`
-
-Em `src/hooks/useAuth.ts`, adicionar `console.error` quando a inserção falha, para não engolir erros silenciosamente.
-
-## Arquivos
-
-1. **Migração SQL** — trigger + sync dos usuários existentes
-2. `src/hooks/useAuth.ts` — log de erro na inserção
+## Fluxo do Usuário
+1. Admin clica "Redefinir Senha" ao lado do usuário
+2. Edge function dispara email de recovery via Supabase Auth
+3. Usuário recebe email bonito em PT-BR com botão "Redefinir minha senha"
+4. Link redireciona para `/app/login` onde o formulário de "Definir senha" aparece automaticamente (já implementado)
 
