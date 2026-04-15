@@ -103,7 +103,7 @@ export default function Configuracoes() {
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
 
   function handleCreateTemplate(values: TemplateFormValues) {
-    createTemplate.mutate(values, {
+    createTemplate.mutate({ nome: values.nome, html_content: values.html_content, descricao: values.descricao, status: values.status }, {
       onSuccess: () => { toast.success("Template criado"); setTemplateFormOpen(false); },
       onError: (e) => toast.error("Erro: " + e.message),
     });
