@@ -814,6 +814,45 @@ export type Database = {
           },
         ]
       }
+      crm_usuarios: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_admin: boolean
+          is_ativo: boolean
+          is_comercial: boolean
+          is_financeiro: boolean
+          is_operador: boolean
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          is_admin?: boolean
+          is_ativo?: boolean
+          is_comercial?: boolean
+          is_financeiro?: boolean
+          is_operador?: boolean
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_admin?: boolean
+          is_ativo?: boolean
+          is_comercial?: boolean
+          is_financeiro?: boolean
+          is_operador?: boolean
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_webhook_events: {
         Row: {
           event_type: string
@@ -899,7 +938,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_meu_perfil: {
+        Args: never
+        Returns: {
+          is_admin: boolean
+          is_ativo: boolean
+          is_comercial: boolean
+          is_financeiro: boolean
+          is_operador: boolean
+        }[]
+      }
+      has_perfil: { Args: { _roles: string[] }; Returns: boolean }
+      is_active_with_any_role: { Args: never; Returns: boolean }
+      is_admin_user: { Args: never; Returns: boolean }
     }
     Enums: {
       desconto_nivel:
