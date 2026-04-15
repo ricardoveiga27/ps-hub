@@ -19,6 +19,7 @@ import Financeiro from "./pages/app/Financeiro.tsx";
 import Assinaturas from "./pages/app/Assinaturas.tsx";
 import Pacotes from "./pages/app/Pacotes.tsx";
 import Configuracoes from "./pages/app/Configuracoes.tsx";
+import Usuarios from "./pages/app/Usuarios.tsx";
 
 const queryClient = new QueryClient();
 

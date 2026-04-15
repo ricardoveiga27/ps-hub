@@ -8,8 +8,8 @@ import {
   Wallet,
   Settings,
   LogOut,
+  Users,
 } from "lucide-react";
-import { useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -26,23 +26,32 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-
-const menuItems = [
-  { title: "Dashboard", url: "/app/dashboard", icon: LayoutDashboard },
-  { title: "Pacotes", url: "/app/pacotes", icon: Package },
-  { title: "Clientes", url: "/app/clientes", icon: Building2 },
-  { title: "Propostas", url: "/app/propostas", icon: FileText },
-  { title: "Contratos", url: "/app/contratos", icon: ScrollText },
-  { title: "Assinaturas", url: "/app/assinaturas", icon: Repeat },
-  { title: "Financeiro", url: "/app/financeiro", icon: Wallet },
-  { title: "Configurações", url: "/app/configuracoes", icon: Settings },
-];
+import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, perfil } = useAuth();
+
+  const menuItems = [
+    { title: "Dashboard", url: "/app/dashboard", icon: LayoutDashboard, show: true },
+    { title: "Pacotes", url: "/app/pacotes", icon: Package,
+      show: perfil.is_admin || perfil.is_comercial },
+    { title: "Clientes", url: "/app/clientes", icon: Building2,
+      show: perfil.is_admin || perfil.is_comercial || perfil.is_financeiro || perfil.is_operador },
+    { title: "Propostas", url: "/app/propostas", icon: FileText,
+      show: perfil.is_admin || perfil.is_comercial || perfil.is_operador },
+    { title: "Contratos", url: "/app/contratos", icon: ScrollText,
+      show: perfil.is_admin || perfil.is_comercial || perfil.is_financeiro || perfil.is_operador },
+    { title: "Assinaturas", url: "/app/assinaturas", icon: Repeat,
+      show: perfil.is_admin || perfil.is_comercial || perfil.is_financeiro || perfil.is_operador },
+    { title: "Financeiro", url: "/app/financeiro", icon: Wallet,
+      show: perfil.is_admin || perfil.is_financeiro },
+    { title: "Configurações", url: "/app/configuracoes", icon: Settings,
+      show: perfil.is_admin },
+    { title: "Usuários", url: "/app/usuarios", icon: Users,
+      show: perfil.is_admin },
+  ].filter(item => item.show);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-white/10">
@@ -86,6 +95,15 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2">
+        {!collapsed && (
+          <div className="px-2 pb-2">
+            <div className="flex flex-wrap gap-1">
+              {perfil.is_comercial && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">comercial</Badge>}
+              {perfil.is_financeiro && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">financeiro</Badge>}
+              {perfil.is_operador && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">operador</Badge>}
+            </div>
+          </div>
+        )}
         <Button
           variant="ghost"
           size={collapsed ? "icon" : "default"}
