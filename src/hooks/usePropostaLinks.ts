@@ -10,7 +10,7 @@ export type PropostaLinkUpdate = TablesUpdate<"crm_proposta_links">;
 
 export function substituirVariaveis(html: string, vars: Record<string, string>): string {
   return Object.entries(vars).reduce((acc, [key, value]) => {
-    return acc.replaceAll(`{{${key}}}`, value ?? "");
+    return acc.split(`{{${key}}}`).join(value ?? "");
   }, html);
 }
 
