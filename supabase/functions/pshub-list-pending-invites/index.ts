@@ -50,55 +50,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const email = body?.email;
-    const nome = body?.nome || email?.split("@")[0] || "Usuário";
-    const resend = body?.resend === true;
-
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      return new Response(
-        JSON.stringify({ error: "E-mail inválido" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Use service role to invite
+    // Use service role to list auth users with pending invites
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const publicAppUrl = Deno.env.get("PUBLIC_APP_URL") || "";
+    // List all users and filter pending invites
+    const pendingInvites: Array<{
+      id: string;
+      email: string;
+      nome: string;
+      invited_at: string;
+    }> = [];
 
-    if (resend) {
-      // For resend, delete the existing user and re-invite
-      // First find the user by email
-      const { data: { users } } = await adminClient.auth.admin.listUsers();
-      const existingUser = users.find((u) => u.email === email);
+    let page = 1;
+    const perPage = 100;
+    let hasMore = true;
 
-      if (existingUser && !existingUser.email_confirmed_at) {
-        // Delete unconfirmed user so we can re-invite
-        await adminClient.auth.admin.deleteUser(existingUser.id);
-      }
-    }
-
-    // Send (or re-send) invite
-    const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { nome },
-      redirectTo: `${publicAppUrl}/app/login`,
-    });
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    while (hasMore) {
+      const { data: { users }, error } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage,
       });
+
+      if (error) throw error;
+
+      for (const u of users) {
+        if (u.invited_at && !u.email_confirmed_at) {
+          pendingInvites.push({
+            id: u.id,
+            email: u.email || "",
+            nome: (u.user_metadata as any)?.nome || u.email?.split("@")[0] || "",
+            invited_at: u.invited_at,
+          });
+        }
+      }
+
+      hasMore = users.length === perPage;
+      page++;
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify(pendingInvites), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
