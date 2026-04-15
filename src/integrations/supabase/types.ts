@@ -574,6 +574,99 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_proposta_links: {
+        Row: {
+          aceite_cargo: string | null
+          aceite_cpf: string | null
+          aceite_em: string | null
+          aceite_nome: string | null
+          criado_em: string
+          expira_em: string
+          html_gerado: string
+          id: string
+          ip_aceite: string | null
+          proposta_id: string
+          status: string
+          template_id: string
+          token: string
+        }
+        Insert: {
+          aceite_cargo?: string | null
+          aceite_cpf?: string | null
+          aceite_em?: string | null
+          aceite_nome?: string | null
+          criado_em?: string
+          expira_em?: string
+          html_gerado: string
+          id?: string
+          ip_aceite?: string | null
+          proposta_id: string
+          status?: string
+          template_id: string
+          token?: string
+        }
+        Update: {
+          aceite_cargo?: string | null
+          aceite_cpf?: string | null
+          aceite_em?: string | null
+          aceite_nome?: string | null
+          criado_em?: string
+          expira_em?: string
+          html_gerado?: string
+          id?: string
+          ip_aceite?: string | null
+          proposta_id?: string
+          status?: string
+          template_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_proposta_links_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "crm_propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_proposta_links_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "crm_proposta_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_proposta_templates: {
+        Row: {
+          criado_em: string
+          descricao: string | null
+          html_content: string
+          id: string
+          nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          criado_em?: string
+          descricao?: string | null
+          html_content: string
+          id?: string
+          nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          criado_em?: string
+          descricao?: string | null
+          html_content?: string
+          id?: string
+          nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_propostas: {
         Row: {
           aceita_em: string | null
