@@ -1,50 +1,39 @@
 
 
-# Reset de Senha com Email Customizado em PT-BR
+# Corrigir envio de email de reset + customizar conteúdo
 
-## Contexto
-Os usuários Michele e JOAO tESTE foram criados por convite mas nunca definiram senha. Precisamos:
-1. Botão "Redefinir Senha" na tabela de usuários
-2. Email customizado e bonito em português BR (não o padrão do Supabase)
+## Problema atual
+A edge function `pshub-reset-password` usa `adminClient.auth.admin.generateLink()` que **apenas gera o link** mas NÃO envia nenhum email. O usuário nunca recebe nada.
 
-## Pré-requisito: Domínio de Email
-O projeto ainda não tem domínio de email configurado. Para enviar emails personalizados (não o template padrão), é necessário configurar um domínio primeiro. Sem isso, os emails de reset usarão o template genérico do sistema.
+## Solução em 2 passos
 
-**Primeiro passo:** Configurar o domínio de email no Lovable Cloud. Você verá um botão para iniciar essa configuração.
+### Passo 1: Corrigir a edge function para enviar email
+Trocar `generateLink` por `resetPasswordForEmail` no admin client, que de fato dispara o email de recovery pelo sistema do Supabase.
 
-## Implementação
+```typescript
+// DE:
+await adminClient.auth.admin.generateLink({ type: "recovery", email, ... });
 
-### 1. Nova Edge Function: `pshub-reset-password`
-- Recebe `{ email }` do admin autenticado
-- Valida que o chamador é admin (mesmo padrão das outras functions)
-- Usa `adminClient.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } })` para gerar o link de recovery
-- Retorna sucesso
+// PARA:
+await adminClient.auth.resetPasswordForEmail(email, {
+  redirectTo: `${publicAppUrl}/app/login`,
+});
+```
 
-### 2. Configuração de Email Personalizado
-Após configurar o domínio:
-- Scaffold dos templates de auth email
-- Customizar o template de **recovery** em português BR com a identidade visual do PS Hub:
-  - Cores: primária `hsl(235, 85%, 42%)` → violeta/azul, accent verde `hsl(142, 100%, 42%)`
-  - Fonte: DM Sans / Syne
-  - Logo e nome "PS Hub"
-  - Texto: "Olá, [nome]! Recebemos uma solicitação para redefinir sua senha..."
-  - Botão CTA: "Redefinir minha senha"
-  - Fundo do email: branco (#ffffff)
+Isso resolve o envio imediato — o email chega usando o template padrão.
 
-### 3. Botão na Tela de Usuários (`Usuarios.tsx`)
-- Adicionar coluna "Ações" na tabela de usuários ativos
-- Botão com ícone `Mail` → "Enviar reset de senha"
-- Ao clicar, chama a edge function `pshub-reset-password`
-- Feedback via toast: "Email de redefinição enviado para {email}"
+### Passo 2: Customizar o conteúdo do email (requer domínio de email)
+Para alterar o texto do email para PT-BR com visual bonito do PS Hub, precisamos:
+1. Configurar um domínio de email (botão abaixo)
+2. Criar os templates de auth email customizados com:
+   - Texto em português BR
+   - Cores do PS Hub (violeta primário, verde accent)
+   - Botão CTA "Redefinir minha senha"
+   - Logo e nome "PS Hub"
+3. Deploy do template
 
-### Arquivos
-1. `supabase/functions/pshub-reset-password/index.ts` — nova edge function
-2. `src/pages/app/Usuarios.tsx` — botão de reset na tabela
-3. Templates de auth email (após configuração do domínio)
+**Sem o domínio configurado, o email será enviado com o template padrão (em inglês).** O remetente NÃO muda — continua sendo o padrão do sistema.
 
-## Fluxo do Usuário
-1. Admin clica "Redefinir Senha" ao lado do usuário
-2. Edge function dispara email de recovery via Supabase Auth
-3. Usuário recebe email bonito em PT-BR com botão "Redefinir minha senha"
-4. Link redireciona para `/app/login` onde o formulário de "Definir senha" aparece automaticamente (já implementado)
+## Arquivos
+1. `supabase/functions/pshub-reset-password/index.ts` — corrigir para enviar email de fato
 
