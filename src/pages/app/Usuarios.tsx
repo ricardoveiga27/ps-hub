@@ -51,11 +51,13 @@ export default function Usuarios() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async ({ userId, campo, valor }: { userId: string; campo: string; valor: boolean }) => {
-      if (campo === "is_admin") return;
+    mutationFn: async ({ userId, campo, valor }: { userId: string; campo: "is_comercial" | "is_financeiro" | "is_operador" | "is_ativo"; valor: boolean }) => {
+      if (campo === "is_admin" as string) return;
+      const updateObj: Record<string, boolean> = {};
+      updateObj[campo] = valor;
       const { error } = await supabase
         .from("crm_usuarios")
-        .update({ [campo]: valor })
+        .update(updateObj as any)
         .eq("id", userId);
       if (error) throw error;
     },
