@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, UserPlus, ShieldAlert, RefreshCw, Clock } from "lucide-react";
+import { Loader2, UserPlus, ShieldAlert, RefreshCw, Clock, KeyRound } from "lucide-react";
 
 type CrmUsuario = {
   id: string;
@@ -90,6 +90,26 @@ export default function Usuarios() {
   });
 
   const [resending, setResending] = useState<string | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<string | null>(null);
+
+  const handleResetPassword = async (email: string) => {
+    setResettingPassword(email);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("pshub-reset-password", {
+        body: { email },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      const body = res.data as { ok?: boolean; error?: string };
+      if (body?.error) throw new Error(body.error);
+      toast({ title: "Email enviado", description: `Redefinição de senha enviada para ${email}` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Erro ao enviar reset", description: err.message });
+    } finally {
+      setResettingPassword(null);
+    }
+  };
 
   const handleResendInvite = async (email: string, nome: string) => {
     setResending(email);
