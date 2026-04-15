@@ -38,6 +38,18 @@ export default function PropostaPublica() {
       });
   }, [token]);
 
+  // Activate print button (inline onclick is ignored by dangerouslySetInnerHTML)
+  useEffect(() => {
+    if (!html || !containerRef.current) return;
+    const printBtn = containerRef.current.querySelector('.btn-print-wrap button') as HTMLButtonElement | null;
+    if (printBtn) {
+      printBtn.removeAttribute('onclick');
+      const handler = () => window.print();
+      printBtn.addEventListener('click', handler);
+      return () => printBtn.removeEventListener('click', handler);
+    }
+  }, [html]);
+
   // Bind acceptance logic after HTML renders
   useEffect(() => {
     if (!html || !containerRef.current || !token) return;
