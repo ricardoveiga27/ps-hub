@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export type Proposta = Tables<"crm_propostas"> & {
-  crm_clientes?: { razao_social: string; nome_fantasia: string | null } | null;
-  crm_pacotes?: { codigo: string; nome: string } | null;
+  crm_clientes?: { razao_social: string; nome_fantasia: string | null; cnpj: string | null; responsavel_comercial: string | null } | null;
+  crm_pacotes?: { codigo: string; nome: string; preco_por_vida: number | null; ciclos_index_ano: number | null; franquia_relatos_qtd: number | null; franquia_relatos_tipo: string; iris_ativo: boolean; modulo_liderancas: boolean; catalogo_completo: boolean } | null;
 };
 export type PropostaInsert = TablesInsert<"crm_propostas">;
 export type PropostaUpdate = TablesUpdate<"crm_propostas">;
+
+const SELECT_QUERY = "*, crm_clientes(razao_social, nome_fantasia, cnpj, responsavel_comercial), crm_pacotes(codigo, nome, preco_por_vida, ciclos_index_ano, franquia_relatos_qtd, franquia_relatos_tipo, iris_ativo, modulo_liderancas, catalogo_completo)";
 
 interface PropostaFilters {
   search?: string;
@@ -20,7 +22,7 @@ export function usePropostas(filters: PropostaFilters = {}) {
     queryFn: async () => {
       let query = supabase
         .from("crm_propostas")
-        .select("*, crm_clientes(razao_social, nome_fantasia), crm_pacotes(codigo, nome)")
+        .select(SELECT_QUERY)
         .order("created_at", { ascending: false });
 
       if (filters.status) {
@@ -46,7 +48,7 @@ export function useProposta(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_propostas")
-        .select("*, crm_clientes(razao_social, nome_fantasia), crm_pacotes(codigo, nome)")
+        .select(SELECT_QUERY)
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
