@@ -1,9 +1,22 @@
-import { ArrowDown, MessageCircle } from "lucide-react";
+import { ArrowDown, MessageCircle, LogIn } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import logo from "@/assets/Logotipo_pshub.png";
 
 const HeroSection = () => {
+  const { user } = useAuth();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Access button */}
+      <Link
+        to={user ? "/app/dashboard" : "/app/login"}
+        className="absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white/70 border border-white/10 backdrop-blur-md transition-all duration-300 hover:text-white hover:border-white/30 hover:bg-white/5"
+      >
+        <LogIn size={16} />
+        {user ? "Ir para o painel" : "Acesso restrito"}
+      </Link>
+
       {/* Mesh gradient background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-ps-blue/20 blur-[120px] animate-mesh-1" />

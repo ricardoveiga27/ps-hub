@@ -70,8 +70,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const publicAppUrl = Deno.env.get("PUBLIC_APP_URL") || "";
     const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { nome },
+      redirectTo: `${publicAppUrl}/app/login`,
     });
 
     if (error) {
