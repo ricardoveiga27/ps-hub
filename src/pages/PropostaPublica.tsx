@@ -25,12 +25,39 @@ function cpfMask(value: string): string {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
+function useResetBodyStyles() {
+  useEffect(() => {
+    const origBody = {
+      background: document.body.style.background,
+      margin: document.body.style.margin,
+      padding: document.body.style.padding,
+    };
+    const origHtml = {
+      background: document.documentElement.style.background,
+    };
+
+    document.body.style.background = "transparent";
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.documentElement.style.background = "transparent";
+
+    return () => {
+      document.body.style.background = origBody.background;
+      document.body.style.margin = origBody.margin;
+      document.body.style.padding = origBody.padding;
+      document.documentElement.style.background = origHtml.background;
+    };
+  }, []);
+}
+
 export default function PropostaPublica() {
   const { token } = useParams<{ token: string }>();
   const [link, setLink] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [accepted, setAccepted] = useState(false);
+
+  useResetBodyStyles();
 
   const form = useForm<AceiteForm>({
     resolver: zodResolver(aceiteSchema),
@@ -76,124 +103,141 @@ export default function PropostaPublica() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <SystemPage>
         <p className="text-gray-400">Carregando...</p>
-      </div>
+      </SystemPage>
     );
   }
 
   if (!link) {
     return (
-      <Page>
+      <SystemPage>
         <StatusCard icon={<FileX className="h-10 w-10 text-gray-400" />} title="Proposta não encontrada" description="O link que você acessou não existe ou foi removido." />
-      </Page>
+      </SystemPage>
     );
   }
 
   const isExpired = link.status === "expirada" || new Date(link.expira_em) < new Date();
   if (isExpired && link.status === "aguardando") {
     return (
-      <Page>
+      <SystemPage>
         <StatusCard icon={<AlertTriangle className="h-10 w-10 text-amber-500" />} title="Proposta expirada" description="O prazo para aceite desta proposta já encerrou." />
-      </Page>
+      </SystemPage>
     );
   }
 
   if (link.status === "cancelada") {
     return (
-      <Page>
+      <SystemPage>
         <StatusCard icon={<XCircle className="h-10 w-10 text-red-500" />} title="Proposta cancelada" description="Esta proposta foi cancelada pelo emissor." />
-      </Page>
+      </SystemPage>
     );
   }
 
   if (link.status === "aceita" || accepted) {
     return (
-      <Page>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-          <p className="text-emerald-800 text-sm font-medium">
-            {accepted
-              ? "Proposta aceita com sucesso. Nossa equipe entrará em contato em até 1 dia útil."
-              : `Proposta aceita em ${new Date(link.aceite_em).toLocaleDateString("pt-BR")}`}
-          </p>
-        </div>
+      <>
+        <Toaster />
         <div dangerouslySetInnerHTML={{ __html: link.html_gerado }} />
-      </Page>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
+          <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 8, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+            <CheckCircle2 className="h-5 w-5" style={{ color: "#059669", flexShrink: 0 }} />
+            <p style={{ color: "#065f46", fontSize: 14, fontWeight: 500, margin: 0 }}>
+              {accepted
+                ? "Proposta aceita com sucesso. Nossa equipe entrará em contato em até 1 dia útil."
+                : `Proposta aceita em ${new Date(link.aceite_em).toLocaleDateString("pt-BR")}`}
+            </p>
+          </div>
+        </div>
+      </>
     );
   }
 
   // Status aguardando
   return (
-    <Page>
+    <>
       <Toaster />
-      <div dangerouslySetInnerHTML={{ __html: link.html_gerado }} className="mb-8" />
+      <div dangerouslySetInnerHTML={{ __html: link.html_gerado }} />
 
-      <div className="border-t border-gray-200 pt-8 mt-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Para aceitar esta proposta, preencha seus dados</h2>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
-            <input
-              {...form.register("nome_completo")}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-            {form.formState.errors.nome_completo && <p className="text-red-500 text-xs mt-1">{form.formState.errors.nome_completo.message}</p>}
-          </div>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
+        <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 32 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", marginBottom: 16 }}>Para aceitar esta proposta, preencha seus dados</h2>
+          <form onSubmit={form.handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 448 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 4 }}>Nome completo *</label>
+              <input
+                {...form.register("nome_completo")}
+                style={{ width: "100%", borderRadius: 6, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 14, outline: "none" }}
+              />
+              {form.formState.errors.nome_completo && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{form.formState.errors.nome_completo.message}</p>}
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
-            <input
-              value={form.watch("cpf")}
-              onChange={(e) => form.setValue("cpf", cpfMask(e.target.value), { shouldValidate: true })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              placeholder="000.000.000-00"
-            />
-            {form.formState.errors.cpf && <p className="text-red-500 text-xs mt-1">{form.formState.errors.cpf.message}</p>}
-          </div>
+            <div>
+              <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 4 }}>CPF *</label>
+              <input
+                value={form.watch("cpf")}
+                onChange={(e) => form.setValue("cpf", cpfMask(e.target.value), { shouldValidate: true })}
+                style={{ width: "100%", borderRadius: 6, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 14, outline: "none" }}
+                placeholder="000.000.000-00"
+              />
+              {form.formState.errors.cpf && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{form.formState.errors.cpf.message}</p>}
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
-            <input
-              {...form.register("cargo")}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-          </div>
+            <div>
+              <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 4 }}>Cargo</label>
+              <input
+                {...form.register("cargo")}
+                style={{ width: "100%", borderRadius: 6, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 14, outline: "none" }}
+              />
+            </div>
 
-          <div className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              id="aceite"
-              onChange={(e) => form.setValue("aceite", e.target.checked as any, { shouldValidate: true })}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="aceite" className="text-sm text-gray-600">
-              Declaro que li e aceito os termos desta proposta em nome da empresa indicada acima.
-            </label>
-          </div>
-          {form.formState.errors.aceite && <p className="text-red-500 text-xs">{form.formState.errors.aceite.message}</p>}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <input
+                type="checkbox"
+                id="aceite"
+                onChange={(e) => form.setValue("aceite", e.target.checked as any, { shouldValidate: true })}
+                style={{ marginTop: 3, width: 16, height: 16 }}
+              />
+              <label htmlFor="aceite" style={{ fontSize: 14, color: "#4b5563" }}>
+                Declaro que li e aceito os termos desta proposta em nome da empresa indicada acima.
+              </label>
+            </div>
+            {form.formState.errors.aceite && <p style={{ color: "#ef4444", fontSize: 12 }}>{form.formState.errors.aceite.message}</p>}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {submitting ? "Processando..." : "Confirmar aceite"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                width: "100%",
+                background: "#2563eb",
+                color: "#fff",
+                padding: "10px 16px",
+                borderRadius: 6,
+                fontSize: 14,
+                fontWeight: 500,
+                border: "none",
+                cursor: submitting ? "not-allowed" : "pointer",
+                opacity: submitting ? 0.5 : 1,
+              }}
+            >
+              {submitting ? "Processando..." : "Confirmar aceite"}
+            </button>
+          </form>
+        </div>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#9ca3af", marginTop: 24 }}>PS Hub — Veiga Perícias</p>
       </div>
-    </Page>
+    </>
   );
 }
 
-function Page({ children }: { children: React.ReactNode }) {
+function SystemPage({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+    <div style={{ minHeight: "100vh", background: "#f9fafb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ maxWidth: 600, width: "100%", margin: "0 auto", padding: "48px 16px" }}>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", border: "1px solid #f3f4f6", padding: 32 }}>
           {children}
         </div>
-        <p className="text-center text-xs text-gray-400 mt-6">PS Hub — Veiga Perícias</p>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#9ca3af", marginTop: 24 }}>PS Hub — Veiga Perícias</p>
       </div>
     </div>
   );
@@ -201,10 +245,10 @@ function Page({ children }: { children: React.ReactNode }) {
 
 function StatusCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="text-center py-12 space-y-3">
-      <div className="flex justify-center">{icon}</div>
-      <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
-      <p className="text-gray-500 text-sm">{description}</p>
+    <div style={{ textAlign: "center", padding: "48px 0" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>{icon}</div>
+      <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", marginBottom: 8 }}>{title}</h1>
+      <p style={{ color: "#6b7280", fontSize: 14 }}>{description}</p>
     </div>
   );
 }
