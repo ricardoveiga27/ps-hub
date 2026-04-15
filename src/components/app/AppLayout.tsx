@@ -3,10 +3,11 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AppLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading, temAcesso, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,6 +25,29 @@ export default function AppLayout() {
   }
 
   if (!user) return null;
+
+  if (!temAcesso) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[hsl(226,60%,8%)]">
+        <div className="text-center space-y-4 max-w-md px-6">
+          <ShieldAlert className="h-12 w-12 text-amber-400 mx-auto" />
+          <h1 className="text-xl font-bold text-white">Acesso pendente</h1>
+          <p className="text-white/60 text-sm">
+            Sua conta foi criada mas ainda não tem permissões atribuídas.
+            Aguarde a liberação pelo administrador.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => signOut()}
+            className="mt-4 border-white/20 text-white/70 hover:text-white hover:bg-white/10"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
