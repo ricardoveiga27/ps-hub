@@ -242,11 +242,13 @@ export default function PropostaDetalheComponent({ id }: Props) {
               <Link2 className="h-4 w-4 mr-2" /> Gerar Link
             </Button>
           )}
+          {["rascunho", "enviada"].includes(proposta.status) && (
+            <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
           {proposta.status === "rascunho" && (
             <>
-              <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
-                <Edit className="h-4 w-4" />
-              </Button>
               <Button variant="outline" onClick={handleEnviar} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
                 <Send className="h-4 w-4 mr-2" /> Enviar
               </Button>
