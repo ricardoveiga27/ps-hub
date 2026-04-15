@@ -41,13 +41,28 @@ export default function PropostaPublica() {
   // Activate print button (inline onclick is ignored by dangerouslySetInnerHTML)
   useEffect(() => {
     if (!html || !containerRef.current) return;
+
+    // Extrair e aplicar o <title> do template ao document.title
+    const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+    if (titleMatch?.[1]) {
+      document.title = titleMatch[1];
+    }
+
+    // Ativar botão de impressão (lógica existente)
     const printBtn = containerRef.current.querySelector('.btn-print-wrap button') as HTMLButtonElement | null;
     if (printBtn) {
       printBtn.removeAttribute('onclick');
       const handler = () => window.print();
       printBtn.addEventListener('click', handler);
-      return () => printBtn.removeEventListener('click', handler);
+      return () => {
+        printBtn.removeEventListener('click', handler);
+        document.title = 'PS Hub';
+      };
     }
+
+    return () => {
+      document.title = 'PS Hub';
+    };
   }, [html]);
 
   // Bind acceptance logic after HTML renders
