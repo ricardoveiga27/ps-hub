@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, UserPlus, ShieldAlert } from "lucide-react";
+import { Loader2, UserPlus, ShieldAlert, RefreshCw, Clock } from "lucide-react";
 
 type CrmUsuario = {
   id: string;
@@ -26,6 +26,13 @@ type CrmUsuario = {
   is_operador: boolean;
   is_admin: boolean;
   created_at: string;
+};
+
+type PendingInvite = {
+  id: string;
+  email: string;
+  nome: string;
+  invited_at: string;
 };
 
 export default function Usuarios() {
@@ -50,6 +57,19 @@ export default function Usuarios() {
     enabled: perfil.is_admin,
   });
 
+  const { data: pendingInvites = [], isLoading: loadingInvites } = useQuery({
+    queryKey: ["pending_invites"],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("pshub-list-pending-invites", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      return (res.data as PendingInvite[]) || [];
+    },
+    enabled: perfil.is_admin,
+  });
+
   const toggleMutation = useMutation({
     mutationFn: async ({ userId, campo, valor }: { userId: string; campo: "is_comercial" | "is_financeiro" | "is_operador" | "is_ativo"; valor: boolean }) => {
       if (campo === "is_admin" as string) return;
@@ -69,6 +89,28 @@ export default function Usuarios() {
     },
   });
 
+  const [resending, setResending] = useState<string | null>(null);
+
+  const handleResendInvite = async (email: string, nome: string) => {
+    setResending(email);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("pshub-invite-user", {
+        body: { email, nome, resend: true },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      const body = res.data as { ok?: boolean; error?: string };
+      if (body?.error) throw new Error(body.error);
+      toast({ title: "Convite reenviado", description: `Novo e-mail enviado para ${email}` });
+      queryClient.invalidateQueries({ queryKey: ["pending_invites"] });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Erro ao reenviar", description: err.message });
+    } finally {
+      setResending(null);
+    }
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail) return;
     setInviting(true);
@@ -85,6 +127,7 @@ export default function Usuarios() {
       setInviteOpen(false);
       setInviteEmail("");
       setInviteNome("");
+      queryClient.invalidateQueries({ queryKey: ["pending_invites"] });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Erro ao convidar", description: err.message });
     } finally {
@@ -102,6 +145,20 @@ export default function Usuarios() {
       </div>
     );
   }
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -185,6 +242,69 @@ export default function Usuarios() {
           </Table>
         </div>
       )}
+
+      {/* Convites Pendentes */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-white/50" />
+          <h2 className="text-lg font-semibold text-white">Convites Pendentes</h2>
+          {pendingInvites.length > 0 && (
+            <Badge variant="secondary" className="text-xs">{pendingInvites.length}</Badge>
+          )}
+        </div>
+
+        {loadingInvites ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+          </div>
+        ) : pendingInvites.length === 0 ? (
+          <p className="text-white/40 text-sm py-4">Nenhum convite pendente.</p>
+        ) : (
+          <div className="rounded-lg border border-white/10 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-white/10 hover:bg-transparent">
+                  <TableHead className="text-white/60">Nome</TableHead>
+                  <TableHead className="text-white/60">Email</TableHead>
+                  <TableHead className="text-white/60">Convidado em</TableHead>
+                  <TableHead className="text-white/60 text-center">Status</TableHead>
+                  <TableHead className="text-white/60 text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingInvites.map((invite) => (
+                  <TableRow key={invite.id} className="border-white/10">
+                    <TableCell className="text-white font-medium">{invite.nome}</TableCell>
+                    <TableCell className="text-white/70">{invite.email}</TableCell>
+                    <TableCell className="text-white/50 text-sm">{formatDate(invite.invited_at)}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="text-[10px] border-yellow-500/50 text-yellow-400">
+                        pendente
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 text-white/60 hover:text-white"
+                        disabled={resending === invite.email}
+                        onClick={() => handleResendInvite(invite.email, invite.nome)}
+                      >
+                        {resending === invite.email ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        Reenviar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
