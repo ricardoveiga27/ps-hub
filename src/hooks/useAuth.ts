@@ -27,50 +27,51 @@ export function useAuth() {
   const [perfil, setPerfil] = useState<PerfilUsuario>(PERFIL_VAZIO);
 
   const fetchOrCreatePerfil = useCallback(async (u: User) => {
-    // Try to fetch existing profile
-    const { data } = await supabase
-      .from("crm_usuarios")
-      .select("is_admin, is_comercial, is_financeiro, is_operador, is_ativo, nome, email")
-      .eq("id", u.id)
-      .maybeSingle();
-
-    if (data) {
-      setPerfil(data);
-      return;
-    }
-
-    // Auto-create profile on first login
-    const nome = u.user_metadata?.nome || u.email?.split("@")[0] || "Usuário";
-    const email = u.email || "";
-    const { error } = await supabase
-      .from("crm_usuarios")
-      .insert({ id: u.id, nome, email });
-
-    if (!error) {
-      // Freshly created — all booleans default to false, is_ativo to true
-      setPerfil({ ...PERFIL_VAZIO, is_ativo: true, nome, email });
-    } else {
-      // If insert failed (race condition), try fetching again
-      const { data: retry } = await supabase
+    try {
+      const { data } = await supabase
         .from("crm_usuarios")
         .select("is_admin, is_comercial, is_financeiro, is_operador, is_ativo, nome, email")
         .eq("id", u.id)
         .maybeSingle();
-      setPerfil(retry ?? PERFIL_VAZIO);
+
+      if (data) {
+        setPerfil(data);
+        setLoading(false);
+        return;
+      }
+
+      const nome = u.user_metadata?.nome || u.email?.split("@")[0] || "Usuário";
+      const email = u.email || "";
+      const { error } = await supabase
+        .from("crm_usuarios")
+        .insert({ id: u.id, nome, email });
+
+      if (!error) {
+        setPerfil({ ...PERFIL_VAZIO, is_ativo: true, nome, email });
+      } else {
+        const { data: retry } = await supabase
+          .from("crm_usuarios")
+          .select("is_admin, is_comercial, is_financeiro, is_operador, is_ativo, nome, email")
+          .eq("id", u.id)
+          .maybeSingle();
+        setPerfil(retry ?? PERFIL_VAZIO);
+      }
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchOrCreatePerfil(session.user);
+          setTimeout(() => fetchOrCreatePerfil(session.user), 0);
         } else {
           setPerfil(PERFIL_VAZIO);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
