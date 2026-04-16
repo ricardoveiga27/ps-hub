@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Comercial() {
-  const { perfil } = useAuth();
+  const { perfil, loading } = useAuth();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!perfil.is_comercial && !perfil.is_admin) {
+    if (!loading && !perfil.is_comercial && !perfil.is_admin) {
       navigate("/app/dashboard");
     }
-  }, [perfil, navigate]);
+  }, [perfil, loading, navigate]);
 
   useEffect(() => {
     if (!containerRef.current) return;
