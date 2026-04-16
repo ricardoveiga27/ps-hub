@@ -1,39 +1,35 @@
 
 
-# Corrigir envio de email de reset + customizar conteúdo
+# Nova Página Comercial — Simulador de Preços
 
-## Problema atual
-A edge function `pshub-reset-password` usa `adminClient.auth.admin.generateLink()` que **apenas gera o link** mas NÃO envia nenhum email. O usuário nunca recebe nada.
+## Resumo
+Criar a página `/app/comercial` com simulador de preços interativo e tabela de planos, acessível apenas para `is_comercial` e `is_admin`.
 
-## Solução em 2 passos
+## Implementação
 
-### Passo 1: Corrigir a edge function para enviar email
-Trocar `generateLink` por `resetPasswordForEmail` no admin client, que de fato dispara o email de recovery pelo sistema do Supabase.
+### 1. `src/pages/app/Comercial.tsx` (novo)
+- Página com todo o HTML do simulador embedado via `dangerouslySetInnerHTML`
+- CSS variables do tema dark definidas no escopo `.sim-painel`
+- Script do simulador re-executado via `useEffect` + `querySelectorAll("script")`
+- Guard de acesso: redireciona para `/app/dashboard` se não for comercial/admin
+- Modal "Desconto Supremo" sem senha — clique direto desbloqueia (conforme restrição linha 1060)
+- Conteúdo completo: simulador, tabela de preços, matriz de inclusões, régua de descontos, estudos de caso
 
-```typescript
-// DE:
-await adminClient.auth.admin.generateLink({ type: "recovery", email, ... });
+### 2. `src/App.tsx`
+- Adicionar import e rota `<Route path="comercial" element={<Comercial />} />`
 
-// PARA:
-await adminClient.auth.resetPasswordForEmail(email, {
-  redirectTo: `${publicAppUrl}/app/login`,
-});
-```
+### 3. `src/components/app/AppSidebar.tsx`
+- Novo item no menu após Dashboard: `{ title: "Comercial", url: "/app/comercial", icon: TrendingUp, show: perfil.is_admin || perfil.is_comercial }`
 
-Isso resolve o envio imediato — o email chega usando o template padrão.
-
-### Passo 2: Customizar o conteúdo do email (requer domínio de email)
-Para alterar o texto do email para PT-BR com visual bonito do PS Hub, precisamos:
-1. Configurar um domínio de email (botão abaixo)
-2. Criar os templates de auth email customizados com:
-   - Texto em português BR
-   - Cores do PS Hub (violeta primário, verde accent)
-   - Botão CTA "Redefinir minha senha"
-   - Logo e nome "PS Hub"
-3. Deploy do template
-
-**Sem o domínio configurado, o email será enviado com o template padrão (em inglês).** O remetente NÃO muda — continua sendo o padrão do sistema.
+## Detalhes técnicos
+- Tudo em um único arquivo `Comercial.tsx` (conforme restrição)
+- CSS com namespace `.sim-painel` para não conflitar com o dashboard
+- CSS variables (`--bg`, `--text`, `--blue`, etc.) definidas inline no escopo
+- Fontes Syne e DM Sans já carregadas pelo dashboard
+- Não modifica CSS global
 
 ## Arquivos
-1. `supabase/functions/pshub-reset-password/index.ts` — corrigir para enviar email de fato
+1. `src/pages/app/Comercial.tsx` — novo (página completa)
+2. `src/App.tsx` — adicionar rota
+3. `src/components/app/AppSidebar.tsx` — adicionar item de menu
 
