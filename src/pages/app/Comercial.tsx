@@ -25,12 +25,6 @@ export default function Comercial() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Comercial</h1>
-        <p className="text-sm text-white/50">
-          Simulador de preços e tabela de planos — uso interno restrito
-        </p>
-      </div>
       <div
         ref={containerRef}
         className="sim-painel"

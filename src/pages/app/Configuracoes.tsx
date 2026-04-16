@@ -135,7 +135,6 @@ export default function Configuracoes() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-heading font-bold text-white">Configurações</h1>
         <Skeleton className="h-64 w-full bg-white/10" />
       </div>
     );
@@ -143,8 +142,6 @@ export default function Configuracoes() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold text-white">Configurações</h1>
-
       <Tabs defaultValue="asaas">
         <TabsList className="bg-white/5 border border-white/10">
           <TabsTrigger value="asaas" className="data-[state=active]:bg-white/10 text-white/70 data-[state=active]:text-white">Asaas</TabsTrigger>

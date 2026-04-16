@@ -10,7 +10,6 @@ export default function Financeiro() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold text-white">Financeiro</h1>
       <FilaAprovacao />
       <FinanceiroResumo faturas={faturas} />
       <FaturasList

@@ -91,8 +91,7 @@ export default function PropostasList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-white">Propostas</h1>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Nova Proposta
         </Button>

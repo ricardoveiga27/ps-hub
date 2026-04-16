@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
@@ -9,6 +9,23 @@ import { Button } from "@/components/ui/button";
 export default function AppLayout() {
   const { user, loading, temAcesso, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const ROUTE_TITLES: Record<string, string> = {
+    dashboard: "Dashboard",
+    clientes: "Clientes",
+    propostas: "Propostas",
+    contratos: "Contratos",
+    assinaturas: "Assinaturas",
+    financeiro: "Financeiro",
+    comercial: "Comercial",
+    configuracoes: "Configurações",
+    usuarios: "Usuários",
+    pacotes: "Pacotes",
+  };
+
+  const segment = location.pathname.split("/")[2] || "dashboard";
+  const pageTitle = ROUTE_TITLES[segment] || "Painel";
 
   useEffect(() => {
     if (!loading && !user) {
@@ -57,7 +74,7 @@ export default function AppLayout() {
           <header className="h-14 flex items-center border-b border-white/10 px-4 shrink-0">
             <SidebarTrigger className="text-white/70 hover:text-white" />
             <div className="ml-4 text-sm text-white/40 font-medium">
-              Painel Comercial
+              {pageTitle}
             </div>
           </header>
           <main className="flex-1 overflow-auto p-6">
