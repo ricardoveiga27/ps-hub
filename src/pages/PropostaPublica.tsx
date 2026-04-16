@@ -26,14 +26,12 @@ export default function PropostaPublica() {
   useEffect(() => {
     if (!token) return;
     supabase
-      .from("crm_proposta_links")
-      .select("html_gerado, status, expira_em")
-      .eq("token", token)
-      .maybeSingle()
+      .rpc("get_proposta_link_by_token", { _token: token })
       .then(({ data }) => {
-        setHtml(data?.html_gerado ?? null);
-        setLinkStatus(data?.status ?? null);
-        setExpiraEm(data?.expira_em ?? null);
+        const row = Array.isArray(data) ? data[0] : null;
+        setHtml(row?.html_gerado ?? null);
+        setLinkStatus(row?.status ?? null);
+        setExpiraEm(row?.expira_em ?? null);
         setLoading(false);
       });
   }, [token]);
@@ -116,16 +114,13 @@ export default function PropostaPublica() {
       btn.disabled = true;
       btn.textContent = "Enviando...";
 
-      const { error } = await supabase
-        .from("crm_proposta_links")
-        .update({
-          status: "aceita",
-          aceite_nome: nome,
-          aceite_cpf: cpf,
-          aceite_cargo: cargo || null,
-          aceite_em: new Date().toISOString(),
-        })
-        .eq("token", token!);
+      const { error } = await supabase.rpc("aceitar_proposta_link", {
+        _token: token!,
+        _nome: nome,
+        _cpf: cpf,
+        _cargo: cargo || "",
+        _ip: "",
+      });
 
       if (error) {
         alert("Erro ao registrar aceite. Tente novamente.");
