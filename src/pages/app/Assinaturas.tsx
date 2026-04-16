@@ -54,7 +54,6 @@ export default function Assinaturas() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold text-white">Assinaturas</h1>
 
       <div className="border border-white/10 rounded-lg overflow-hidden">
         <Table>
