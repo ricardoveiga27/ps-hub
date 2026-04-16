@@ -385,35 +385,124 @@ const SIMULADOR_CSS = `
   border-top: 1px solid var(--border);
 }
 
-/* Discount result row */
+/* Discount result cards */
 .sim-painel .discount-results {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-  margin-top: 16px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 20px;
+}
+@media (max-width: 900px) {
+  .sim-painel .discount-results {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .sim-painel .dr-item {
-  text-align: center;
-  padding: 10px 8px;
-  border-radius: 8px;
+  text-align: left;
+  padding: 16px 14px;
+  border-radius: 10px;
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+.sim-painel .dr-item.dr-green  { border-left-color: var(--green); }
+.sim-painel .dr-item.dr-blue   { border-left-color: var(--blue); }
+.sim-painel .dr-item.dr-amber  { border-left-color: var(--amber); }
+.sim-painel .dr-item.dr-orange { border-left-color: hsl(25, 95%, 53%); }
+.sim-painel .dr-item.dr-red    { border-left-color: var(--red); }
+
+.sim-painel .dr-item .dr-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  margin-bottom: 2px;
 }
 
-.sim-painel .dr-item .dr-pct {
+.sim-painel .dr-item .dr-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 5px;
   font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: 'DM Sans', sans-serif;
+  width: fit-content;
+  margin-bottom: 6px;
+}
+.sim-painel .dr-badge-green  { background: rgba(34,197,94,0.15); color: var(--green); }
+.sim-painel .dr-badge-blue   { background: rgba(59,130,246,0.15); color: var(--blue); }
+.sim-painel .dr-badge-amber  { background: rgba(245,158,11,0.15); color: var(--amber); }
+.sim-painel .dr-badge-orange { background: rgba(249,115,22,0.15); color: hsl(25,95%,53%); }
+.sim-painel .dr-badge-red    { background: rgba(239,68,68,0.15); color: var(--red); }
+
+.sim-painel .dr-item .dr-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: 'Syne', sans-serif;
+  line-height: 1.2;
+}
+.sim-painel .dr-item .dr-val span {
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-family: 'DM Sans', sans-serif;
   color: var(--text-muted);
-  margin-bottom: 4px;
+}
+
+.sim-painel .dr-item .dr-recurrent {
+  font-size: 0.65rem;
+  color: var(--text-muted);
   font-family: 'DM Sans', sans-serif;
 }
 
-.sim-painel .dr-item .dr-val {
-  font-size: 1rem;
+.sim-painel .dr-item .dr-vida {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.sim-painel .dr-item .dr-vida strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sim-painel .dr-item .dr-auth {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.sim-painel .dr-item .dr-note {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.sim-painel .dr-item .dr-active-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.55rem;
   font-weight: 700;
-  font-family: 'Syne', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(239,68,68,0.15);
+  color: var(--red);
+  font-family: 'DM Sans', sans-serif;
 }
 `;
 
