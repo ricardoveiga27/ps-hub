@@ -42,12 +42,18 @@ export function useAuth() {
 
       const nome = u.user_metadata?.nome || u.email?.split("@")[0] || "Usuário";
       const email = u.email || "";
+      // Auto-insere SEM nenhum papel e inativo. Admin precisa liberar manualmente.
       const { error } = await supabase
         .from("crm_usuarios")
-        .insert({ id: u.id, nome, email });
+        .insert({
+          id: u.id, nome, email,
+          is_ativo: false,
+          is_admin: false, is_comercial: false,
+          is_financeiro: false, is_operador: false,
+        });
 
       if (!error) {
-        setPerfil({ ...PERFIL_VAZIO, is_ativo: true, nome, email });
+        setPerfil({ ...PERFIL_VAZIO, nome, email });
       } else {
         console.error("[useAuth] Erro ao inserir perfil:", error.message, error.details);
         const { data: retry } = await supabase
