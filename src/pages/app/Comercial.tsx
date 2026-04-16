@@ -93,53 +93,50 @@ const SIMULADOR_CSS = `
   margin-bottom: 20px;
 }
 
-/* Slider */
-.sim-painel .slider-wrap {
+/* Stepper control */
+.sim-painel .sim-stepper {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 0;
+  margin: 1.5rem auto;
+  width: fit-content;
 }
-
-.sim-painel .slider-value {
-  font-size: 3.5rem;
-  font-weight: 800;
+.sim-painel .sim-stepper button {
+  width: 48px;
+  height: 56px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 1.4rem;
   font-family: 'Syne', sans-serif;
-  color: var(--blue);
-  line-height: 1;
-}
-
-.sim-painel input[type="range"] {
-  -webkit-appearance: none;
-  width: 100%;
-  max-width: 600px;
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  outline: none;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
 }
-
-.sim-painel input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 3px solid var(--bg);
-  box-shadow: 0 0 12px rgba(59,130,246,0.5);
-  cursor: grab;
+.sim-painel .sim-stepper button:first-child { border-radius: 10px 0 0 10px; }
+.sim-painel .sim-stepper button:last-child  { border-radius: 0 10px 10px 0; }
+.sim-painel .sim-stepper button:hover { background: rgba(255,255,255,0.12); }
+.sim-painel .sim-stepper button:active { background: rgba(255,255,255,0.18); }
+.sim-painel .sim-stepper input {
+  width: 120px;
+  height: 56px;
+  background: rgba(255,255,255,0.04);
+  border-top: 1px solid rgba(255,255,255,0.12);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  border-left: none;
+  border-right: none;
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
 }
-
-.sim-painel .slider-labels {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 600px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-}
+.sim-painel .sim-stepper input::-webkit-outer-spin-button,
+.sim-painel .sim-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
 /* Result cards */
 .sim-painel .result-grid {
@@ -163,6 +160,7 @@ const SIMULADOR_CSS = `
   letter-spacing: 0.1em;
   color: var(--text-muted);
   margin-bottom: 6px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel .result-card .value {
@@ -175,6 +173,7 @@ const SIMULADOR_CSS = `
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 2px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel .badge {
@@ -185,6 +184,7 @@ const SIMULADOR_CSS = `
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); }
@@ -197,6 +197,7 @@ const SIMULADOR_CSS = `
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel table th {
@@ -208,12 +209,14 @@ const SIMULADOR_CSS = `
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel table td {
   padding: 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel table tr:last-child td {
@@ -285,6 +288,7 @@ const SIMULADOR_CSS = `
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel .discount-card dt {
@@ -293,11 +297,13 @@ const SIMULADOR_CSS = `
   letter-spacing: 0.08em;
   color: var(--text-muted);
   margin-top: 8px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel .discount-card dd {
   font-size: 0.82rem;
   margin: 2px 0 0 0;
+  font-family: 'DM Sans', sans-serif;
 }
 
 /* Case studies */
@@ -407,6 +413,7 @@ const SIMULADOR_CSS = `
   letter-spacing: 0.08em;
   color: var(--text-muted);
   margin-bottom: 4px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .sim-painel .dr-item .dr-val {
@@ -422,12 +429,10 @@ const SIMULADOR_HTML = `
   <h3 class="sim-title">Simulador de Preços</h3>
   <p class="sim-subtitle">Calcule o ticket pelo número de funcionários — o plano e os valores são calculados automaticamente.</p>
 
-  <div class="slider-wrap">
-    <div class="slider-value" id="sim-display">30</div>
-    <input type="range" id="sim-slider" min="10" max="2000" value="30" step="1" />
-    <div class="slider-labels">
-      <span>10</span><span>200</span><span>500</span><span>1.000</span><span>2.000</span>
-    </div>
+  <div class="sim-stepper">
+    <button id="btnMenos" onclick="window.__stepFunc(-10)">−</button>
+    <input type="number" id="numFunc" value="30" min="10" max="2000">
+    <button id="btnMais" onclick="window.__stepFunc(10)">+</button>
   </div>
 
   <div class="result-grid" id="sim-results">
@@ -656,6 +661,21 @@ const SIMULADOR_HTML = `
         Comunicar sempre como "desconto de lançamento" ou "benefício de fidelidade" — nunca como "preço especial para você". Evita criar expectativa de que esse é o preço permanente.
       </div>
     </div>
+    <div class="discount-card dc-50">
+      <div class="discount-pct" style="color:var(--red)">−50%</div>
+      <div class="discount-label" style="color:var(--red)">TETO ABSOLUTO — DESCONTO SUPREMO</div>
+      <dl>
+        <dt>Quando usar</dt>
+        <dd>Operação acima de 500 vidas onde nenhum desconto anterior fechou. Último recurso absoluto.</dd>
+        <dt>Autoriza</dt>
+        <dd>Ricardo — decisão exclusiva</dd>
+        <dt>Condição</dt>
+        <dd>Contrato 24 meses · pagamento anual antecipado · SLA definido em contrato · cláusula de reajuste IPCA no 2º ano</dd>
+      </dl>
+      <div class="warn-box" style="margin-top:12px">
+        🚨 Abaixo de 50% o serviço não se paga com suporte Enterprise. Este desconto jamais deve ser mencionado proativamente ao cliente — só aplicar quando a negociação exige e Ricardo autorizar.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -711,8 +731,7 @@ const SIMULADOR_HTML = `
 
 <script>
 (function() {
-  var slider = document.getElementById('sim-slider');
-  var display = document.getElementById('sim-display');
+  var numInput = document.getElementById('numFunc');
   var results = document.getElementById('sim-results');
   var discounts = document.getElementById('sim-discounts');
 
@@ -727,10 +746,16 @@ const SIMULADOR_HTML = `
     return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 0 });
   }
 
-  function update() {
-    var v = parseInt(slider.value);
+  function sync(v) {
+    v = Math.max(10, Math.min(2000, v));
+    v = Math.round(v / 10) * 10;
+    if (v < 10) v = 10;
+    numInput.value = v;
+    update(v);
+  }
+
+  function update(v) {
     var minVidas = v < 10 ? 10 : v;
-    display.textContent = v.toLocaleString('pt-BR');
     var tier = getTier(v);
     var monthly = tier.price * minVidas;
     var annual = monthly * 12;
@@ -741,8 +766,8 @@ const SIMULADOR_HTML = `
       '<div class="result-card"><div class="label">Ticket Mensal</div><div class="value" style="color:var(--blue)">' + fmt(monthly) + '</div><div class="sub">' + minVidas + ' vidas</div></div>' +
       '<div class="result-card"><div class="label">Anual</div><div class="value">' + fmt(annual) + '</div><div class="sub">' + tier.billing + '</div></div>';
 
-    var pcts = [10, 20, 30, 40];
-    var colors = ['var(--green)', 'var(--blue)', 'var(--amber)', 'var(--red)'];
+    var pcts = [10, 20, 30, 40, 50];
+    var colors = ['var(--green)', 'var(--blue)', 'var(--amber)', 'var(--red)', 'var(--red)'];
     var html = '';
     for (var i = 0; i < pcts.length; i++) {
       var disc = monthly * (1 - pcts[i] / 100);
@@ -751,8 +776,22 @@ const SIMULADOR_HTML = `
     discounts.innerHTML = html;
   }
 
-  slider.addEventListener('input', update);
-  update();
+  window.__stepFunc = function(delta) {
+    var current = parseInt(numInput.value) || 10;
+    sync(current + delta);
+  };
+
+  numInput.addEventListener('change', function() {
+    var v = parseInt(this.value) || 10;
+    sync(v);
+  });
+
+  numInput.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowUp')   { e.preventDefault(); window.__stepFunc(10); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); window.__stepFunc(-10); }
+  });
+
+  sync(30);
 })();
 </script>
 `;
