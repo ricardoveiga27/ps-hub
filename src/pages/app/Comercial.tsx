@@ -849,12 +849,29 @@ const SIMULADOR_HTML = `
       '<div class="result-card"><div class="label">Ticket Mensal</div><div class="value" style="color:var(--blue)">' + fmt(monthly) + '</div><div class="sub">' + minVidas + ' vidas</div></div>' +
       '<div class="result-card"><div class="label">Anual</div><div class="value">' + fmt(annual) + '</div><div class="sub">' + tier.billing + '</div></div>';
 
-    var pcts = [10, 20, 30, 40, 50];
-    var colors = ['var(--green)', 'var(--blue)', 'var(--amber)', 'var(--red)', 'var(--red)'];
+    var pcts   = [10, 20, 30, 40, 50];
+    var clsB   = ['dr-green','dr-blue','dr-amber','dr-orange','dr-red'];
+    var clsBdg  = ['dr-badge-green','dr-badge-blue','dr-badge-amber','dr-badge-orange','dr-badge-red'];
+    var valClr  = ['var(--green)','var(--blue)','var(--amber)','hsl(25,95%,53%)','var(--red)'];
+    var titles  = ['Desc. 10%','Desc. 20%','Desc. 30% (Ricardo)','Campanha Veiga','Desconto Supremo'];
+    var auths   = ['AUTONOMIA VENDEDOR','AUTONOMIA VENDEDOR','★ APROVAÇÃO RICARDO','★ APROVAÇÃO RICARDO','★ DECISÃO RICARDO'];
+    var authClr = ['var(--green)','var(--blue)','var(--amber)','hsl(25,95%,53%)','var(--red)'];
+    var notes   = ['','','','Contrato anual · exclusivo SST','Contrato 24m · pgto antecipado'];
     var html = '';
     for (var i = 0; i < pcts.length; i++) {
       var disc = monthly * (1 - pcts[i] / 100);
-      html += '<div class="dr-item"><div class="dr-pct">−' + pcts[i] + '%</div><div class="dr-val" style="color:' + colors[i] + '">' + fmt(Math.round(disc)) + '</div></div>';
+      var vidaDisc = tier.price * (1 - pcts[i] / 100);
+      var fmtVida = 'R$ ' + vidaDisc.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+      html += '<div class="dr-item ' + clsB[i] + '">';
+      if (i === 4) html += '<div class="dr-active-badge">ATIVO</div>';
+      html += '<div class="dr-title">' + titles[i] + '</div>';
+      html += '<div class="dr-badge ' + clsBdg[i] + '">−' + pcts[i] + '%</div>';
+      html += '<div class="dr-val" style="color:' + valClr[i] + '">' + fmt(Math.round(disc)) + ' <span>/mês</span></div>';
+      html += '<div class="dr-recurrent">recorrente mensal</div>';
+      html += '<div class="dr-vida">Valor/vida: <strong>' + fmtVida + '</strong></div>';
+      html += '<div class="dr-auth" style="color:' + authClr[i] + '">' + auths[i] + '</div>';
+      if (notes[i]) html += '<div class="dr-note">' + notes[i] + '</div>';
+      html += '</div>';
     }
     discounts.innerHTML = html;
   }
