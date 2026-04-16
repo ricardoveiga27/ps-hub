@@ -938,6 +938,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aceitar_proposta_link: {
+        Args: {
+          _cargo: string
+          _cpf: string
+          _ip: string
+          _nome: string
+          _token: string
+        }
+        Returns: {
+          aceite_cargo: string | null
+          aceite_cpf: string | null
+          aceite_em: string | null
+          aceite_nome: string | null
+          criado_em: string
+          expira_em: string
+          html_gerado: string
+          id: string
+          ip_aceite: string | null
+          proposta_id: string
+          status: string
+          template_id: string
+          token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "crm_proposta_links"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_meu_perfil: {
         Args: never
         Returns: {
@@ -947,6 +977,30 @@ export type Database = {
           is_financeiro: boolean
           is_operador: boolean
         }[]
+      }
+      get_proposta_link_by_token: {
+        Args: { _token: string }
+        Returns: {
+          aceite_cargo: string | null
+          aceite_cpf: string | null
+          aceite_em: string | null
+          aceite_nome: string | null
+          criado_em: string
+          expira_em: string
+          html_gerado: string
+          id: string
+          ip_aceite: string | null
+          proposta_id: string
+          status: string
+          template_id: string
+          token: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crm_proposta_links"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       has_perfil: { Args: { _roles: string[] }; Returns: boolean }
       is_active_with_any_role: { Args: never; Returns: boolean }
