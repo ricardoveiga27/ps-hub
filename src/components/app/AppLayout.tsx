@@ -73,7 +73,7 @@ export default function AppLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center border-b border-white/10 px-4 shrink-0">
             <SidebarTrigger className="text-white/70 hover:text-white" />
-            <div className="ml-4 text-sm text-white/40 font-medium">
+            <div className="ml-4 text-lg text-white font-semibold font-heading">
               {pageTitle}
             </div>
           </header>
