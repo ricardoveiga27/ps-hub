@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Users,
+  TrendingUp,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +36,8 @@ export function AppSidebar() {
 
   const menuItems = [
     { title: "Dashboard", url: "/app/dashboard", icon: LayoutDashboard, show: true },
+    { title: "Comercial", url: "/app/comercial", icon: TrendingUp,
+      show: perfil.is_admin || perfil.is_comercial },
     { title: "Pacotes", url: "/app/pacotes", icon: Package,
       show: perfil.is_admin || perfil.is_comercial },
     { title: "Clientes", url: "/app/clientes", icon: Building2,
