@@ -1,33 +1,31 @@
 
 
-# Aumentar Fonte e Destacar Cor do Título do Header
+# Ajustes visuais nos cards de desconto do simulador
 
-## Problema
-O título da página no header está com fonte pequena (`text-sm`) e cor muito desbotada (`text-white/40`), dificultando a leitura e identificação da página atual.
+## O que muda
 
-## Solução
-Alterar a linha 76 do `src/components/app/AppLayout.tsx`:
+### 1. Cards de desconto (`sim-discounts`) — visual próximo da referência
+A referência mostra cards com:
+- Título do desconto no topo (ex: "Desc. 10%", "Campanha Veiga", "Desconto Supremo")
+- Badge colorido com a porcentagem (ex: badge verde "-10%", badge azul "-20%", etc.)
+- Preço grande em cor destaque + "/mês"
+- Texto "recorrente mensal" abaixo
+- **Valor por vida** abaixo do preço
+- Label de autorização em caps (ex: "AUTONOMIA VENDEDOR", "★ APROVAÇÃO RICARDO")
+- Nota de condições nos cards 40% e 50%
+- Badge "ATIVO" no card Supremo
+- Bordas laterais coloridas por nível
 
-**Atual:**
-```tsx
-<div className="ml-4 text-sm text-white/40 font-medium">
-  {pageTitle}
-</div>
-```
+### 2. Alterações no CSS
+- Atualizar `.dr-item` para ter layout vertical com mais conteúdo, borda lateral colorida, fundo escuro diferenciado
+- Ajustar grid para 5 colunas em desktop (`grid-template-columns: repeat(5, 1fr)`)
+- Cards mais altos com padding adequado para o conteúdo extra
 
-**Novo:**
-```tsx
-<div className="ml-4 text-lg text-white font-semibold font-heading">
-  {pageTitle}
-</div>
-```
-
-### Mudanças:
-- `text-sm` → `text-lg` (aumenta tamanho da fonte)
-- `text-white/40` → `text-white` (cor branca sólida, sem opacidade)
-- `font-medium` → `font-semibold` (peso mais destacado)
-- Adiciona `font-heading` (usa a fonte Syne, mesma dos títulos do sistema)
+### 3. Alterações no JS (`update()`)
+- Calcular `valor por vida com desconto` = `tier.price * (1 - pct/100)`
+- Renderizar cada card com: título, badge %, preço/mês, "recorrente mensal", valor/vida, label de autorização, e nota de condição (para 40% e 50%)
+- Cores: 10%=verde, 20%=azul, 30%=amber, 40%=vermelho/amber (Campanha Veiga), 50%=vermelho (Desconto Supremo)
 
 ## Arquivo
-- `src/components/app/AppLayout.tsx` — linha 76
+- `src/pages/app/Comercial.tsx` — alterações no CSS (`.dr-item` e `.discount-results`) e no JS da função `update()`
 
