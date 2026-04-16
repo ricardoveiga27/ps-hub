@@ -182,11 +182,7 @@ export default function Usuarios() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Usuários</h1>
-          <p className="text-white/50 text-sm">Gerencie perfis e permissões dos usuários do sistema.</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setInviteOpen(true)} className="gap-2">
           <UserPlus className="h-4 w-4" />
           Convidar Usuário

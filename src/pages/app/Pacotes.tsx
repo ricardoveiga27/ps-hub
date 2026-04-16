@@ -107,8 +107,7 @@ export default function Pacotes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-white">Pacotes</h1>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Novo Pacote
         </Button>
