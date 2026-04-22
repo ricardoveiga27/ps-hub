@@ -212,6 +212,7 @@ export default function ClienteDetalhePage() {
           <TabsTrigger value="dados" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Dados</TabsTrigger>
           <TabsTrigger value="contatos" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Contatos</TabsTrigger>
           <TabsTrigger value="funcionarios" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Funcionários</TabsTrigger>
+          <TabsTrigger value="acessos" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Acessos</TabsTrigger>
           <TabsTrigger value="propostas" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Propostas</TabsTrigger>
           <TabsTrigger value="contratos" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Contratos</TabsTrigger>
           <TabsTrigger value="financeiro" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Financeiro</TabsTrigger>
@@ -300,6 +301,15 @@ export default function ClienteDetalhePage() {
               </Table>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Acessos */}
+        <TabsContent value="acessos">
+          <AcessosTab
+            clienteHubId={id!}
+            emailDefault={cliente.email ?? null}
+            nomeCliente={cliente.razao_social}
+          />
         </TabsContent>
 
         {/* Propostas */}
