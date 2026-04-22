@@ -1,101 +1,126 @@
 
 
-## Sincronização automática Hub → PS Cultura / PS Index
+## Aba "Acessos" no detalhe do cliente
 
-Sempre que `crm_clientes` ou `crm_funcionarios` for inserido/atualizado, o banco dispara um trigger que chama a Edge Function `sync-to-products`, que faz fan-out HTTP para os endpoints `receive-hub-sync` dos dois produtos.
+> Observação: o projeto não tem um `EmpresaDrawer.tsx`. O componente equivalente é `src/components/clientes/ClienteDetalhe.tsx` (Tabs Dados/Contatos/Funcionários/Propostas/Contratos/Financeiro). A aba **Acessos** será adicionada lá, após **Funcionários**.
 
 ### Arquitetura
 
 ```text
-crm_clientes / crm_funcionarios
-        │ (AFTER INSERT/UPDATE)
-        ▼
-notify_empresa_sync / notify_funcionario_sync   (SECURITY DEFINER)
-        │ pg_net.http_post  + x-hub-secret
-        ▼
-Edge Function: sync-to-products
-        │ Promise.allSettled  + x-hub-secret
-        ├──► PS Cultura  /functions/v1/receive-hub-sync
-        └──► PS Index    /functions/v1/receive-hub-sync
+ClienteDetalhe (aba Acessos)
+        │
+        ├── Status: fetch direto (REST PostgREST) em PS Cultura/PS Index com anon key publicada *(ver pergunta abaixo)*
+        │
+        └── Botões "Enviar/Reenviar"
+                  │ supabase.functions.invoke (JWT do admin)
+                  ▼
+        Edge Function: send-product-invite  (verify_jwt = true)
+                  │ valida is_admin
+                  │ resolve empresa_id por hub_id em cada produto
+                  │ chama invite-rh / invite-user
+                  ▼
+        PS Cultura ── invite-rh   (Bearer PS_CULTURA_ANON_KEY + x-hub-secret)
+        PS Index   ── invite-user (Bearer PS_INDEX_ANON_KEY)
 ```
 
-### 1. Edge Function — `supabase/functions/sync-to-products/index.ts`
+### 1. Secrets necessários (Lovable Cloud)
 
-- `Deno.serve` com CORS restrito (apenas `pshub.app.br`, domínios Lovable e chamadas server-to-server sem origem).
+Solicitarei via `add_secret`:
+- `PS_CULTURA_ANON_KEY`
+- `PS_INDEX_ANON_KEY`
+
+`HUB_API_SECRET` já existe e será reutilizado.
+
+### 2. Edge Function — `supabase/functions/send-product-invite/index.ts`
+
+- `Deno.serve` com CORS (mesmo padrão da `get-empresa-funcionarios`).
 - `OPTIONS` → 204.
-- Validar header `x-hub-secret` contra `HUB_API_SECRET`. Mismatch → 401.
-- Parse do body `{ evento: string, dados: object }`. Validar `evento` contra whitelist:
-  `empresa.atualizada`, `funcionario.criado`, `funcionario.atualizado`, `funcionario.desativado`. Inválido → 400.
-- Lista de produtos hardcoded:
-  ```ts
-  const PRODUTOS = [
-    { nome: "ps-cultura", url: "https://fyelzagqyyluuinheegn.supabase.co/functions/v1/receive-hub-sync" },
-    { nome: "ps-index",   url: "https://apdsugxhkuwpllzdnpof.supabase.co/functions/v1/receive-hub-sync" },
-  ];
+- Lê `Authorization: Bearer <jwt>`. Cria cliente Supabase com o JWT do chamador, chama `auth.getUser()`. Sem user → 401.
+- Consulta `crm_usuarios.is_admin` para o `user.id`. Não admin → 403.
+- Body validado: `{ produto: 'ps_cultura' | 'ps_index' | 'todos', email: string, nome: string, cliente_hub_id: string }`. Inválido → 400.
+- Para cada produto solicitado:
+  1. `GET https://<projeto>.supabase.co/rest/v1/empresas?hub_id=eq.{cliente_hub_id}&select=id` com `apikey` + `Authorization: Bearer <ANON_KEY do produto>`.
+  2. Se vazio → resultado `{ enviado: false, motivo: "empresa não importada no produto" }`.
+  3. Senão `POST` para a Edge Function de convite do produto:
+     - **PS Cultura**: `…/functions/v1/invite-rh` com `Authorization: Bearer PS_CULTURA_ANON_KEY` + `x-hub-secret: HUB_API_SECRET`, body `{ email, empresa_id, nome }`.
+     - **PS Index**: `…/functions/v1/invite-user` com `Authorization: Bearer PS_INDEX_ANON_KEY`, body `{ email, nome, empresa_id }`.
+  4. Capturar status HTTP e mensagem; nunca propagar exceção (uso de `try/catch` por produto).
+- Resposta 200:
+  ```json
+  {
+    "ps_cultura": { "enviado": true, "motivo": null },
+    "ps_index":   { "enviado": false, "motivo": "empresa não importada no produto" }
+  }
   ```
-- `Promise.allSettled` repassando o mesmo payload `{ evento, dados }` com header `x-hub-secret` (lido de `HUB_API_SECRET`).
-- Para cada resultado: `console.log("sync-to-products", { produto, status, ok })`. Não falhar o request principal.
-- Sempre responder `200 { success: true, evento, resultados: [{ produto, status }] }` para que o trigger nunca quebre o INSERT/UPDATE.
-- `try/catch` global → 500 com log; mesmo assim, qualquer erro pré-validação retorna o status apropriado.
+  Produtos não solicitados retornam `null` no campo correspondente.
+- `console.log` de cada chamada (sem expor secret), `console.error` em falhas.
+- `supabase/config.toml`: como `verify_jwt = true` é o padrão do Lovable e a função autentica via JWT, **não** adicionarei bloco para essa função.
 
-### 2. Configuração — `supabase/config.toml`
+### 3. Aba "Acessos" — `src/components/clientes/ClienteDetalhe.tsx`
 
-Adicionar bloco (preserva os existentes de `get-clientes-hub` e `get-empresa-funcionarios`):
+Adicionar `<TabsTrigger value="acessos">Acessos</TabsTrigger>` após "Funcionários" e o respectivo `<TabsContent value="acessos">` renderizando um novo componente:
 
-```toml
-[functions.sync-to-products]
-verify_jwt = false
+**Novo arquivo**: `src/components/clientes/AcessosTab.tsx`
+
+Props: `{ clienteHubId: string; emailDefault: string | null }`.
+
+Estado local:
+- `email` (string, default `emailDefault ?? ""`, editável via `<Input />`).
+- Mutations React Query: `enviarCultura`, `enviarIndex`, `enviarTodos`.
+
+Queries de status (React Query, `staleTime` curto):
+- **PS Cultura**: 
+  1. `GET https://fyelzagqyyluuinheegn.supabase.co/rest/v1/empresas?hub_id=eq.{clienteHubId}&select=id` com `PS_CULTURA_ANON_KEY` *(ver questão crítica abaixo sobre como o frontend obtém esse anon key)*.
+  2. Se existir, `GET …/rest/v1/perfis?empresa_id=eq.{id}&role=eq.cliente&select=invite_sent_at,invite_accepted_at,nome`.
+  3. Derivar status:
+     - sem registro → `sem_rh`
+     - `invite_accepted_at` preenchido → `ativo`
+     - `invite_sent_at` há > 7 dias e sem aceite → `expirado`
+     - caso contrário → `pendente`
+- **PS Index**: 
+  1. mesma busca em `/rest/v1/empresas?hub_id=eq.{clienteHubId}`.
+  2. `GET …/rest/v1/user_roles?empresa_id=eq.{id}&role=eq.admin_empresa&select=id,created_at`.
+  3. Status: `configurado` se >0 linhas, senão `nao_configurado`.
+
+Layout (light theme, padrão CRM):
+- `<Card>` PS Cultura — badge verde `bg-emerald-500/15 text-emerald-700`, status badge dinâmico, email do RH (quando `ativo`), botão `"Enviar convite"` ou `"Reenviar convite"` conforme status.
+- `<Card>` PS Index — badge violeta `bg-violet-500/15 text-violet-700`, status badge, botão idem.
+- `<Input>` para email (label "Email do convite") com fallback no email do cliente.
+- Botão principal verde `"Enviar todos os convites"` que dispara `produto: 'todos'`.
+- Loading: `disabled` + spinner durante mutation.
+- Toasts (`sonner`): um por produto com base na resposta (`success` se `enviado`, `error` com `motivo` caso contrário).
+- Após sucesso, `queryClient.invalidateQueries` das queries de status.
+
+Mutations chamam:
+```ts
+supabase.functions.invoke("send-product-invite", {
+  body: { produto, email, nome: cliente.razao_social, cliente_hub_id: id }
+});
 ```
 
-### 3. Migration — extensão + triggers
+### 4. Pergunta crítica antes de implementar
 
-**a) Habilitar `pg_net`** (extensão oficial do Supabase para HTTP a partir de funções SQL):
-```sql
-create extension if not exists pg_net with schema extensions;
-```
-> O Supabase expõe `net.http_post` via search_path quando `pg_net` está em `extensions`. Vou usar `net.http_post(...)` como na especificação. Caso o linter alerte, troco para `extensions.http_post` na migration.
+O plano original diz "consultar via fetch as tabelas de perfis de cada produto" diretamente do **navegador**. Isso exige expor `PS_CULTURA_ANON_KEY` e `PS_INDEX_ANON_KEY` no bundle do PS Hub (anon key é pública por design no Supabase, mas amplia a superfície de ataque permitindo qualquer pessoa fazer leituras autenticadas como `anon` nesses projetos).
 
-**b) Armazenar o secret no Postgres** para que os triggers possam montar o header sem hardcode:
-```sql
--- usado em current_setting('app.hub_api_secret', true)
-alter database postgres set "app.hub_api_secret" = '<HUB_API_SECRET>';
-```
-> O valor real será lido de `HUB_API_SECRET` (já configurado em Secrets) e injetado pela migration via SQL literal. Como `ALTER DATABASE postgres` não é permitido em migrations Lovable, usarei alternativa:  
-> **Plano final**: criar GUC apenas na sessão da função via `set_config('app.hub_api_secret', <valor>, false)` **não funciona em trigger**. Solução robusta → embutir o secret diretamente em uma função SQL `SECURITY DEFINER` privada `_get_hub_secret()` retornando o texto, criada pela migration. O secret entra na migration uma única vez. Triggers chamam `_get_hub_secret()` em vez de `current_setting`.
+Preciso decidir como o frontend obtém o status dos produtos:
+- **A. Adicionar uma rota `GET status` na Edge Function `send-product-invite`** (ou criar `get-product-access-status`) que faz as consultas server-side usando os secrets. Frontend chama só essa função autenticado como admin. **Recomendado**: secrets ficam server-side, RLS dos produtos não precisa permitir anon, e o status já vem normalizado (`sem_rh | pendente | expirado | ativo` / `configurado | nao_configurado`).
+- **B. Expor PS_CULTURA_ANON_KEY e PS_INDEX_ANON_KEY como `VITE_*` no frontend** e fazer fetch direto. Mais simples, porém anon key precisa estar publicada e o RLS dos produtos precisa permitir SELECT em `empresas`/`perfis`/`user_roles` para `anon` (provavelmente não permite hoje).
 
-```sql
-create or replace function public._get_hub_secret()
-returns text language sql security definer set search_path = public as $$
-  select '<HUB_API_SECRET>'::text;
-$$;
-revoke all on function public._get_hub_secret() from public, anon, authenticated;
-```
-
-**c) Trigger de empresas** — `notify_empresa_sync()` + `trg_empresa_sync` em `crm_clientes` (AFTER INSERT OR UPDATE), evento fixo `empresa.atualizada`, payload conforme spec, `net.http_post` para `https://ixitjycjcgcfxwqduuit.supabase.co/functions/v1/sync-to-products` com header `x-hub-secret = public._get_hub_secret()`.
-
-**d) Trigger de funcionários** — `notify_funcionario_sync()` + `trg_funcionario_sync` em `crm_funcionarios` (AFTER INSERT OR UPDATE):
-- `TG_OP = 'INSERT'` → `funcionario.criado`
-- `NEW.status = 'inativo' AND OLD.status <> 'inativo'` → `funcionario.desativado`
-- caso contrário → `funcionario.atualizado`
-
-Ambos os triggers usam `SECURITY DEFINER`, `search_path = public, extensions` e `RETURN NEW`. `pg_net` é assíncrono — não bloqueia o INSERT/UPDATE.
-
-### 4. Validação pós-deploy
-
-1. `update crm_clientes set telefone = telefone where id = '<algum-id>'` → log da Edge Function deve mostrar 2 chamadas (ps-cultura, ps-index).
-2. Insert em `crm_funcionarios` → evento `funcionario.criado`.
-3. `update crm_funcionarios set status = 'inativo' where id = ...` → evento `funcionario.desativado`.
-4. `curl -X POST .../sync-to-products` sem header → 401.
+Se você confirmar **A** (recomendado), eu:
+- Mudo a Edge Function para aceitar `{ action: 'status' | 'invite', ... }` (ou crio função separada).
+- Frontend faz tudo via `supabase.functions.invoke`, sem expor anon keys de outros projetos.
 
 ### 5. Não será alterado
 
-- Tabelas (`crm_clientes`, `crm_funcionarios`) — schema intocado.
-- Edge Functions existentes (`get-clientes-hub`, `get-empresa-funcionarios`).
-- RLS, autenticação do CRM, hooks/UI.
+- Outras abas do `ClienteDetalhe` (Dados/Contatos/Funcionários/Propostas/Contratos/Financeiro) permanecem intactas.
+- `pshub-invite-user` (convite interno do CRM) intocada.
+- Edge Functions já existentes (`get-clientes-hub`, `get-empresa-funcionarios`, `sync-to-products`) intocadas.
+- Tabelas, RLS, autenticação do CRM.
 
 ### Arquivos
 
-- **Criar**: `supabase/functions/sync-to-products/index.ts`
-- **Criar**: migration SQL (extensão `pg_net` + função `_get_hub_secret` + 2 funções de trigger + 2 triggers).
-- **Alterar**: `supabase/config.toml` (bloco `[functions.sync-to-products]`).
+- **Criar**: `supabase/functions/send-product-invite/index.ts`
+- **Criar**: `src/components/clientes/AcessosTab.tsx`
+- **Editar**: `src/components/clientes/ClienteDetalhe.tsx` (adicionar `TabsTrigger` + `TabsContent`)
+- **Secrets**: `PS_CULTURA_ANON_KEY`, `PS_INDEX_ANON_KEY` (via `add_secret` após sua confirmação da abordagem A vs B)
 
