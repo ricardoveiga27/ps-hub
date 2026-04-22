@@ -430,6 +430,68 @@ export type Database = {
           },
         ]
       }
+      crm_funcionarios: {
+        Row: {
+          cargo: string | null
+          cliente_id: string
+          cpf: string | null
+          created_at: string
+          data_admissao: string | null
+          email: string | null
+          id: string
+          nome: string
+          origem: string
+          ps_cultura_id: string | null
+          ps_index_id: string | null
+          setor: string | null
+          status: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          cargo?: string | null
+          cliente_id: string
+          cpf?: string | null
+          created_at?: string
+          data_admissao?: string | null
+          email?: string | null
+          id?: string
+          nome: string
+          origem?: string
+          ps_cultura_id?: string | null
+          ps_index_id?: string | null
+          setor?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cargo?: string | null
+          cliente_id?: string
+          cpf?: string | null
+          created_at?: string
+          data_admissao?: string | null
+          email?: string | null
+          id?: string
+          nome?: string
+          origem?: string
+          ps_cultura_id?: string | null
+          ps_index_id?: string | null
+          setor?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_funcionarios_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "crm_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_notas_fiscais: {
         Row: {
           asaas_invoice_id: string | null
