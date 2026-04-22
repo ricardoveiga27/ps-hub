@@ -21,6 +21,7 @@ import Pacotes from "./pages/app/Pacotes.tsx";
 import Configuracoes from "./pages/app/Configuracoes.tsx";
 import Usuarios from "./pages/app/Usuarios.tsx";
 import Comercial from "./pages/app/Comercial.tsx";
+import Funcionarios from "./pages/app/Funcionarios.tsx";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="clientes" element={<Clientes />} />
             <Route path="pacotes" element={<Pacotes />} />
             <Route path="clientes/:id" element={<ClienteDetalhe />} />
+            <Route path="funcionarios" element={<Funcionarios />} />
             <Route path="propostas" element={<Propostas />} />
             <Route path="propostas/:id" element={<PropostaDetalhe />} />
             <Route path="contratos" element={<Contratos />} />
