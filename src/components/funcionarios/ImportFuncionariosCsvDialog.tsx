@@ -144,7 +144,7 @@ function parseCsv(text: string): ParseResult {
   const iData = idx("data_admissao", "admissao", "data_de_admissao", "admissão", "data de admissão");
 
   if (iNome === -1) {
-    result.errors.push({ line: 1, message: "Coluna 'nome' não encontrada no cabeçalho" });
+    result.errors.push({ linha: 1, nome: "(cabeçalho)", campo: "Nome", motivo: "coluna não encontrada no cabeçalho" });
     return result;
   }
 
@@ -169,8 +169,10 @@ function parseCsv(text: string): ParseResult {
     // Linha completamente vazia
     if (!nome && !cpfRaw && !telRaw && !email && !cargo && !setor && !dataRaw) continue;
 
+    const nomeLabel = nome || "(sem nome)";
+
     if (!nome) {
-      result.errors.push({ line: fileLine, message: "nome obrigatório" });
+      result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "Nome", motivo: "obrigatório" });
       continue;
     }
 
@@ -178,11 +180,11 @@ function parseCsv(text: string): ParseResult {
     if (cpfRaw) {
       const d = digitsOnly(cpfRaw);
       if (!isValidCpf(d)) {
-        result.errors.push({ line: fileLine, message: "CPF inválido" });
+        result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "CPF", motivo: "inválido", valorInvalido: cpfRaw });
         continue;
       }
       if (cpfsSeen.has(d)) {
-        result.errors.push({ line: fileLine, message: "CPF duplicado no arquivo" });
+        result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "CPF", motivo: "duplicado no arquivo", valorInvalido: cpfRaw });
         continue;
       }
       cpfsSeen.add(d);
@@ -190,7 +192,7 @@ function parseCsv(text: string): ParseResult {
     }
 
     if (email && !EMAIL_RE.test(email)) {
-      result.errors.push({ line: fileLine, message: "email inválido" });
+      result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "Email", motivo: "formato inválido", valorInvalido: email });
       continue;
     }
 
@@ -198,7 +200,7 @@ function parseCsv(text: string): ParseResult {
     if (dataRaw) {
       const parsed = parseDate(dataRaw);
       if (!parsed) {
-        result.errors.push({ line: fileLine, message: "data_admissao inválida (use DD/MM/AAAA ou AAAA-MM-DD)" });
+        result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "Data de admissão", motivo: "formato inválido", valorInvalido: dataRaw });
         continue;
       }
       data_admissao = parsed;
