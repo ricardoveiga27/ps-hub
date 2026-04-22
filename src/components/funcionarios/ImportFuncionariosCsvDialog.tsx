@@ -32,9 +32,17 @@ interface ParsedRow {
   data_admissao: string | null;
 }
 
+interface RowError {
+  linha: number;
+  nome: string;
+  campo: string;
+  motivo: string;
+  valorInvalido?: string;
+}
+
 interface ParseResult {
   valid: ParsedRow[];
-  errors: { line: number; message: string }[];
+  errors: RowError[];
 }
 
 const TEMPLATE_CSV =
