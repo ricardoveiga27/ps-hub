@@ -1,60 +1,85 @@
 
 
-## Auditoria de Segurança — Resultado
+## Adicionar módulo Funcionários ao CRM
 
-### ✅ O que JÁ está corrigido (não precisa ação)
-- Policies permissivas `USING (true)` mencionadas no arquivo `prompt_rls_fix_emergencial.md` **não existem mais**. Todas as 11 tabelas críticas (`crm_clientes`, `crm_contratos`, `crm_faturas` etc.) já têm apenas policies `perfil_*` baseadas em `has_perfil()`/`is_admin_user()`.
-- Trigger `prevent_self_role_update` bloqueia auto-promoção em `crm_usuarios`.
-- Trigger `prevent_aceite_tamper` protege campos de aceite em `crm_proposta_links`.
-- `self_insert_no_roles` impede signup com flags `true`.
-- Acesso público à proposta agora vai por RPC `SECURITY DEFINER` (token-only).
-
-### ⚠️ Riscos REAIS encontrados que precisam ação
-
-**1. Usuários suspeitos no banco** (CRÍTICO — ação manual)
+### 1. Sidebar — `src/components/app/AppSidebar.tsx`
+Inserir item entre "Clientes" e "Propostas":
+```ts
+{ title: "Funcionários", url: "/app/funcionarios", icon: Users,
+  show: perfil.is_admin || perfil.is_comercial || perfil.is_operador }
 ```
-- michelle@veigasaude.com.br → ativo, comercial+financeiro+operador
-- ricardo.veiga27@gmail.com  → ativo, comercial+financeiro+operador, nome "JOAO tESTE" (suspeito)
-- rveiga.dev@gmail.com       → admin
+
+### 2. Roteamento — `src/App.tsx` + `AppLayout.tsx`
+- Importar `Funcionarios` e adicionar `<Route path="funcionarios" element={<Funcionarios />} />`.
+- Acrescentar entrada `"funcionarios": "Funcionários"` no `ROUTE_TITLES` do `AppLayout` para o título do header.
+
+### 3. Hook — `src/hooks/useFuncionarios.ts` (novo)
+Padrão dos outros hooks (React Query):
+- `useFuncionarios(filters)` — `select('*, crm_clientes(razao_social, nome_fantasia)')`, ordenado por `nome`. Filtros: `cliente_id`, `status`, e busca por `nome`/`cpf`/`email` via `.or(...)`.
+- `useFuncionario(id)`, `useCreateFuncionario()`, `useUpdateFuncionario()`, `useDeleteFuncionario()`.
+- Tipos: `Tables<"crm_funcionarios">`, `TablesInsert`, `TablesUpdate`.
+
+### 4. Página — `src/pages/app/Funcionarios.tsx` (novo)
+Reusa o componente da lista:
+```tsx
+import FuncionariosList from "@/components/funcionarios/FuncionariosList";
+export default function Funcionarios() { return <FuncionariosList />; }
 ```
-A conta "JOAO tESTE" com email do Ricardo parece ter sido criada por terceiro, ou Ricardo testou e ganhou todos os papéis. **Você precisa decidir** se desativa pela tela `/app/usuarios`.
 
-**2. Função `handle_new_auth_user` insere com `is_ativo=true`** (BUG de segurança)
-A função trigger `handle_new_auth_user` ainda faz `INSERT ... is_ativo=true`. Isso é incoerente com a política nova (`useAuth.ts` insere `is_ativo=false`). Se essa trigger estiver ativa em `auth.users`, novos signups ficam ativos automaticamente — anulando o gate "Acesso pendente".  
-**Correção:** alterar a função para inserir `is_ativo=false`.
+### 5. Componentes novos em `src/components/funcionarios/`
 
-**3. `crm_webhook_events` tem policy de INSERT/UPDATE faltante** 
-Apenas `service_role` (ALL) e admin (SELECT). OK — nenhum usuário consegue gravar. Mantém.
+**`FuncionariosList.tsx`** — segue o padrão visual de `ClientesList.tsx` (dark theme, classes `bg-white/5`, `text-white/60`, `Badge`, `Table`):
+- Header: subtítulo "Base centralizada de colaboradores por cliente", botão **"Adicionar funcionário"** (ícone `UserPlus`) e botão secundário **"Importar do PS Index"** (`RefreshCw`, `variant="outline"`) que dispara `toast("Integração com PS Index em breve")`.
+- Filtros: Select de Cliente (carrega `crm_clientes` ativos via `useClientes({ status: "ativo" })`), Select de Status (`ativo`/`inativo`/`afastado`/Todos), input de busca, contador `X funcionários encontrados`.
+- Lê `?cliente_id=` da URL (`useSearchParams`) para pré-filtrar quando vier do drawer de clientes.
+- Tabela: Nome | CPF mascarado `***.***.***-XX` (mostra só os 2 últimos dígitos) | Cliente (`razao_social`) | Cargo / Setor | Status (badge: ativo verde, inativo cinza, afastado amarelo) | Origem (badge: manual cinza, importacao azul, ps_index roxo) | Ações (Edit / Trash).
+- Paginação client-side de 20 por página (`slice` + controles `Anterior`/`Próximo`).
+- Modais: `FuncionarioForm` (criar/editar) e `AlertDialog` de exclusão.
 
-**4. HIBP (senhas vazadas) não está habilitado**
-Permite signup com senhas comprometidas. Precisa ser habilitado via ferramenta de auth.
+**`FuncionarioForm.tsx`** — `Dialog` + `react-hook-form` + `zod` (mesmo padrão de `ClienteForm`):
+- Campos: Cliente* (Select com `crm_clientes` ativos), Nome*, CPF (máscara `000.000.000-00`), Email, Telefone (máscara `(00) 00000-0000`), Cargo, Setor, Data de admissão, Status* (default `ativo`).
+- Schema zod: `nome` e `cliente_id` obrigatórios; CPF opcional mas se preenchido valida 11 dígitos; email valida formato.
+- No submit grava `origem: 'manual'`, `ps_index_id: null`, `ps_cultura_id: null`.
 
-**5. Function `prevent_aceite_tamper` usa claim errado**
-Usa `current_setting('request.jwt.claim.role')` — no Supabase atual o caminho correto é `request.jwt.claims` (json) e o role efetivo está em `auth.role()`. O fallback `session_user='postgres'` cobre quando rodando como definer, mas vale corrigir para `auth.role() = 'service_role'` para robustez.
+### 6. Drawer/Detalhe do cliente — `src/components/clientes/ClienteDetalhe.tsx`
+Adicionar nova aba **"Funcionários"** ao `<TabsList>` (entre Contatos e Propostas):
+- Query `useQuery(["funcionarios-cliente", id])` filtrando `cliente_id` e `status='ativo'`, campos: `id, nome, cargo, setor, status, telefone`.
+- Cabeçalho da aba: contador "X funcionários ativos", botão **"Adicionar funcionário"** (abre `FuncionarioForm` com `lockedClienteId`) e botão **"Ver todos"** que faz `navigate(\`/app/funcionarios?cliente_id=${id}\`)`.
+- Tabela simples com Nome, Cargo, Setor, Telefone, Status.
+- `FuncionarioForm` ganha prop opcional `lockedClienteId` que desabilita o Select de cliente quando definido (mesma lógica que `PropostaForm` usa).
 
-**6. Tabela `licencas_ativas` — SELECT amplo**
-Hoje qualquer perfil ativo lê tudo (`is_active_with_any_role()`). É o desejado para um CRM interno; manter.
+### 7. Segurança / RLS
+Nenhuma migration necessária — `crm_funcionarios` já tem RLS:
+- `operadores_gerenciam_funcionarios` (ALL): admin ou operador.
+- `usuarios_veem_funcionarios` (SELECT): admin, operador ou comercial.
 
----
+A flag `show` no sidebar respeita esses papéis (admin/comercial/operador).
 
-## Plano de correção
+### 8. Mascaramento de CPF
+Função local na lista:
+```ts
+function maskCpf(cpf: string|null) {
+  if (!cpf) return "—";
+  const d = cpf.replace(/\D/g,"");
+  if (d.length !== 11) return cpf;
+  return `***.***.***-${d.slice(9)}`;
+}
+```
+No formulário o CPF aparece sem máscara para edição.
 
-### Migration nova
-1. **Corrigir `handle_new_auth_user`** — inserir `is_ativo=false` para forçar gate admin.
-2. **Corrigir `prevent_aceite_tamper`** — trocar checagem por `auth.role()='service_role'`.
-3. **(Defensiva)** Adicionar policy explícita de DELETE em `crm_usuarios` apenas para admin (hoje não existe nenhuma → ninguém deleta, mas deixar explícito).
-4. **(Defensiva)** Revogar `EXECUTE` público em `aceitar_proposta_link` / `get_proposta_link_by_token` para `authenticated` e conceder apenas a `anon` + `authenticated` (já SECURITY DEFINER, mas grants explícitos evitam exposição acidental).
+### Arquivos a criar
+- `src/hooks/useFuncionarios.ts`
+- `src/pages/app/Funcionarios.tsx`
+- `src/components/funcionarios/FuncionariosList.tsx`
+- `src/components/funcionarios/FuncionarioForm.tsx`
 
-### Habilitar HIBP
-Via ferramenta `configure_auth` com `password_hibp_enabled: true`.
+### Arquivos a alterar
+- `src/components/app/AppSidebar.tsx` — novo item de menu.
+- `src/App.tsx` — nova rota.
+- `src/components/app/AppLayout.tsx` — título no `ROUTE_TITLES`.
+- `src/components/clientes/ClienteDetalhe.tsx` — nova aba Funcionários.
 
-### Ações que VOCÊ precisa fazer manualmente
-- Abrir `/app/usuarios` e:
-  - Desativar/excluir `ricardo.veiga27@gmail.com` se "JOAO tESTE" não for legítimo.
-  - Confirmar se `michelle@veigasaude.com.br` deve ter os 3 papéis.
-- Trocar a senha do admin `rveiga.dev@gmail.com` se houver suspeita de vazamento.
-
-### Arquivos
-- `supabase/migrations/<nova>.sql` — itens 1-4 acima.
-- Configuração de auth (HIBP) — via tool, sem arquivo.
+### Não será alterado
+- Tabela `crm_funcionarios` (já existe com RLS adequada).
+- Demais páginas, fluxo de autenticação e componentes não mencionados.
 
