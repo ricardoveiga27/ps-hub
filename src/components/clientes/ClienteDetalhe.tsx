@@ -66,7 +66,9 @@ export default function ClienteDetalhePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [propostaFormOpen, setPropostaFormOpen] = useState(false);
+  const [funcionarioFormOpen, setFuncionarioFormOpen] = useState(false);
   const createPropostaMutation = useCreateProposta();
+  const createFuncionarioMutation = useCreateFuncionario();
   const queryClient = useQueryClient();
 
   // Read-only lists
@@ -99,6 +101,32 @@ export default function ClienteDetalhePage() {
       return data;
     },
   });
+
+  const { data: funcionarios } = useQuery({
+    queryKey: ["funcionarios-cliente", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_funcionarios")
+        .select("id, nome, cargo, setor, status, telefone")
+        .eq("cliente_id", id!)
+        .eq("status", "ativo")
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  function handleCreateFuncionario(values: any) {
+    createFuncionarioMutation.mutate(values, {
+      onSuccess: () => {
+        sonnerToast.success("Funcionário criado");
+        setFuncionarioFormOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["funcionarios-cliente", id] });
+      },
+      onError: (e) => sonnerToast.error("Erro: " + e.message),
+    });
+  }
 
   function handleCreateProposta(values: PropostaFormValues) {
     const DESCONTO_PCT: Record<string, number> = {
@@ -182,6 +210,7 @@ export default function ClienteDetalhePage() {
         <TabsList className="bg-white/5 border border-white/10">
           <TabsTrigger value="dados" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Dados</TabsTrigger>
           <TabsTrigger value="contatos" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Contatos</TabsTrigger>
+          <TabsTrigger value="funcionarios" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Funcionários</TabsTrigger>
           <TabsTrigger value="propostas" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Propostas</TabsTrigger>
           <TabsTrigger value="contratos" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Contratos</TabsTrigger>
           <TabsTrigger value="financeiro" className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white">Financeiro</TabsTrigger>
@@ -220,6 +249,56 @@ export default function ClienteDetalhePage() {
         {/* Contatos */}
         <TabsContent value="contatos">
           <ContatosList clienteId={id!} />
+        </TabsContent>
+
+        {/* Funcionários */}
+        <TabsContent value="funcionarios">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-white/60 text-sm">{funcionarios?.length ?? 0} funcionários ativos</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/app/funcionarios?cliente_id=${id}`)}
+                  className="border-white/20 text-white/80 hover:bg-white/10"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" /> Ver todos
+                </Button>
+                <Button size="sm" onClick={() => setFuncionarioFormOpen(true)}>
+                  <PlusIcon className="h-4 w-4 mr-2" /> Adicionar funcionário
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-white/5 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead className="text-white/50">Nome</TableHead>
+                    <TableHead className="text-white/50">Cargo</TableHead>
+                    <TableHead className="text-white/50">Setor</TableHead>
+                    <TableHead className="text-white/50">Telefone</TableHead>
+                    <TableHead className="text-white/50">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!funcionarios?.length ? (
+                    <TableRow><TableCell colSpan={5} className="text-center text-white/40 py-8">Nenhum funcionário ativo</TableCell></TableRow>
+                  ) : funcionarios.map((f) => (
+                    <TableRow key={f.id} className="border-white/10">
+                      <TableCell className="text-white">{f.nome}</TableCell>
+                      <TableCell className="text-white/60">{f.cargo ?? "—"}</TableCell>
+                      <TableCell className="text-white/60">{f.setor ?? "—"}</TableCell>
+                      <TableCell className="text-white/60">{f.telefone ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-emerald-500/20 text-emerald-400">{f.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Propostas */}
