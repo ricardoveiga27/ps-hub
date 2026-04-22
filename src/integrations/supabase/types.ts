@@ -1000,6 +1000,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _get_hub_secret: { Args: never; Returns: string }
       aceitar_proposta_link: {
         Args: {
           _cargo: string

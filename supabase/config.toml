@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.get-clientes-hub]
 verify_jwt = false
+
+[functions.sync-to-products]
+verify_jwt = false
