@@ -22,6 +22,7 @@ export default function AppLayout() {
     configuracoes: "Configurações",
     usuarios: "Usuários",
     pacotes: "Pacotes",
+    funcionarios: "Funcionários",
   };
 
   const segment = location.pathname.split("/")[2] || "dashboard";

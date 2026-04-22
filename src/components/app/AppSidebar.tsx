@@ -42,6 +42,8 @@ export function AppSidebar() {
       show: perfil.is_admin || perfil.is_comercial },
     { title: "Clientes", url: "/app/clientes", icon: Building2,
       show: perfil.is_admin || perfil.is_comercial || perfil.is_financeiro || perfil.is_operador },
+    { title: "Funcionários", url: "/app/funcionarios", icon: Users,
+      show: perfil.is_admin || perfil.is_comercial || perfil.is_operador },
     { title: "Propostas", url: "/app/propostas", icon: FileText,
       show: perfil.is_admin || perfil.is_comercial || perfil.is_operador },
     { title: "Contratos", url: "/app/contratos", icon: ScrollText,
