@@ -59,6 +59,8 @@ interface AcessosTabProps {
 export default function AcessosTab({ clienteHubId, emailDefault, nomeCliente }: AcessosTabProps) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState(emailDefault ?? "");
+  const [culturaLink, setCulturaLink] = useState<string | null>(null);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   const { data: status, isLoading: loadingStatus, refetch } = useQuery({
     queryKey: ["product-access-status", clienteHubId],
