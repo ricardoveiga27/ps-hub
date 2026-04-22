@@ -16,11 +16,14 @@ import { useCliente, useUpdateCliente, useDeleteCliente } from "@/hooks/useClien
 import ClienteForm, { type ClienteFormValues } from "./ClienteForm";
 import ContatosList from "./ContatosList";
 import PropostaForm, { type PropostaFormValues } from "@/components/propostas/PropostaForm";
+import FuncionarioForm, { type FuncionarioFormValues } from "@/components/funcionarios/FuncionarioForm";
+import { useCreateFuncionario } from "@/hooks/useFuncionarios";
 import { useCreateProposta } from "@/hooks/usePropostas";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Plus as PlusIcon, ExternalLink } from "lucide-react";
 
 const STATUS_BADGE: Record<string, string> = {
   prospecto: "bg-white/10 text-white/60",
