@@ -15,6 +15,7 @@ import {
 import { useCliente, useUpdateCliente, useDeleteCliente } from "@/hooks/useClientes";
 import ClienteForm, { type ClienteFormValues } from "./ClienteForm";
 import ContatosList from "./ContatosList";
+import AcessosTab from "./AcessosTab";
 import PropostaForm, { type PropostaFormValues } from "@/components/propostas/PropostaForm";
 import FuncionarioForm, { type FuncionarioFormValues } from "@/components/funcionarios/FuncionarioForm";
 import { useCreateFuncionario } from "@/hooks/useFuncionarios";
