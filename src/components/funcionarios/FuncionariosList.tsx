@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, RefreshCw, Pencil, Trash2, Search, UserPlus } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Search, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   type Funcionario,
 } from "@/hooks/useFuncionarios";
 import FuncionarioForm, { type FuncionarioFormValues } from "./FuncionarioForm";
+import ImportFuncionariosCsvDialog from "./ImportFuncionariosCsvDialog";
 
 const PAGE_SIZE = 20;
 
@@ -67,6 +68,7 @@ export default function FuncionariosList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Funcionario | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: clientes } = useClientes({ status: "ativo" });
   const { data: funcionarios, isLoading } = useFuncionarios({
@@ -142,10 +144,10 @@ export default function FuncionariosList() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => toast.info("Integração com PS Index em breve")}
+            onClick={() => setImportOpen(true)}
             className="border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
           >
-            <RefreshCw className="h-4 w-4 mr-2" /> Importar do PS Index
+            <Upload className="h-4 w-4 mr-2" /> Importar CSV
           </Button>
           <Button onClick={handleNew}>
             <UserPlus className="h-4 w-4 mr-2" /> Adicionar funcionário
@@ -282,6 +284,12 @@ export default function FuncionariosList() {
         defaultValues={editing ?? undefined}
         onSubmit={handleSubmit}
         loading={createMutation.isPending || updateMutation.isPending}
+      />
+
+      <ImportFuncionariosCsvDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        defaultClienteId={clienteId !== "todos" ? clienteId : undefined}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
