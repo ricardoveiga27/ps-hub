@@ -34,7 +34,7 @@ interface StatusResponse {
 }
 
 interface InviteResponse {
-  ps_cultura: { enviado: boolean; motivo: string | null } | null;
+  ps_cultura: { enviado: boolean; motivo: string | null; link?: string | null } | null;
   ps_index: { enviado: boolean; motivo: string | null } | null;
 }
 
