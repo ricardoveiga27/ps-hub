@@ -2,3 +2,6 @@ project_id = "ixitjycjcgcfxwqduuit"
 
 [functions.get-empresa-funcionarios]
 verify_jwt = false
+
+[functions.get-clientes-hub]
+verify_jwt = false
