@@ -32,9 +32,17 @@ interface ParsedRow {
   data_admissao: string | null;
 }
 
+interface RowError {
+  linha: number;
+  nome: string;
+  campo: string;
+  motivo: string;
+  valorInvalido?: string;
+}
+
 interface ParseResult {
   valid: ParsedRow[];
-  errors: { line: number; message: string }[];
+  errors: RowError[];
 }
 
 const TEMPLATE_CSV =
@@ -136,7 +144,7 @@ function parseCsv(text: string): ParseResult {
   const iData = idx("data_admissao", "admissao", "data_de_admissao", "admissão", "data de admissão");
 
   if (iNome === -1) {
-    result.errors.push({ line: 1, message: "Coluna 'nome' não encontrada no cabeçalho" });
+    result.errors.push({ linha: 1, nome: "(cabeçalho)", campo: "Nome", motivo: "coluna não encontrada no cabeçalho" });
     return result;
   }
 
@@ -161,8 +169,10 @@ function parseCsv(text: string): ParseResult {
     // Linha completamente vazia
     if (!nome && !cpfRaw && !telRaw && !email && !cargo && !setor && !dataRaw) continue;
 
+    const nomeLabel = nome || "(sem nome)";
+
     if (!nome) {
-      result.errors.push({ line: fileLine, message: "nome obrigatório" });
+      result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "Nome", motivo: "obrigatório" });
       continue;
     }
 
@@ -170,11 +180,11 @@ function parseCsv(text: string): ParseResult {
     if (cpfRaw) {
       const d = digitsOnly(cpfRaw);
       if (!isValidCpf(d)) {
-        result.errors.push({ line: fileLine, message: "CPF inválido" });
+        result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "CPF", motivo: "inválido", valorInvalido: cpfRaw });
         continue;
       }
       if (cpfsSeen.has(d)) {
-        result.errors.push({ line: fileLine, message: "CPF duplicado no arquivo" });
+        result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "CPF", motivo: "duplicado no arquivo", valorInvalido: cpfRaw });
         continue;
       }
       cpfsSeen.add(d);
@@ -182,7 +192,7 @@ function parseCsv(text: string): ParseResult {
     }
 
     if (email && !EMAIL_RE.test(email)) {
-      result.errors.push({ line: fileLine, message: "email inválido" });
+      result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "Email", motivo: "formato inválido", valorInvalido: email });
       continue;
     }
 
@@ -190,7 +200,7 @@ function parseCsv(text: string): ParseResult {
     if (dataRaw) {
       const parsed = parseDate(dataRaw);
       if (!parsed) {
-        result.errors.push({ line: fileLine, message: "data_admissao inválida (use DD/MM/AAAA ou AAAA-MM-DD)" });
+        result.errors.push({ linha: fileLine, nome: nomeLabel, campo: "Data de admissão", motivo: "formato inválido", valorInvalido: dataRaw });
         continue;
       }
       data_admissao = parsed;
@@ -402,9 +412,22 @@ export function ImportFuncionariosCsvDialog({ open, onOpenChange, defaultCliente
 
               {errorCount > 0 && (
                 <ScrollArea className="h-48 rounded border border-white/10 bg-white/5 p-3">
-                  <ul className="space-y-1 text-sm text-red-300">
-                    {parseResult.errors.map((e, i) => (
-                      <li key={i}>Linha {e.line}: {e.message}</li>
+                  <ul className="space-y-1.5">
+                    {parseResult.errors.map((err, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <Badge className="bg-red-500/20 text-red-300 shrink-0">
+                          Linha {err.linha}
+                        </Badge>
+                        <span className="text-white/80">
+                          <span className="font-medium">{err.nome}</span>
+                          <span className="text-white/50"> — </span>
+                          <span className="text-white/70">{err.campo}:</span>{" "}
+                          <span className="text-red-300">{err.motivo}</span>
+                          {err.valorInvalido && (
+                            <span className="text-white/60"> "{err.valorInvalido}"</span>
+                          )}
+                        </span>
+                      </li>
                     ))}
                   </ul>
                 </ScrollArea>
