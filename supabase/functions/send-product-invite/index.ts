@@ -28,6 +28,7 @@ interface RequestBody {
 interface InviteResult {
   enviado: boolean;
   motivo: string | null;
+  link?: string | null;
 }
 
 interface CulturaStatus {
