@@ -28,6 +28,7 @@ interface RequestBody {
 interface InviteResult {
   enviado: boolean;
   motivo: string | null;
+  link?: string | null;
 }
 
 interface CulturaStatus {
@@ -204,7 +205,14 @@ async function inviteCultura(
         motivo: `HTTP ${res.status}: ${text.slice(0, 200)}`,
       };
     }
-    return { enviado: true, motivo: null };
+    let link: string | null = null;
+    try {
+      const parsed = JSON.parse(text);
+      link = typeof parsed?.link === "string" ? parsed.link : null;
+    } catch {
+      // body não-JSON, segue sem link
+    }
+    return { enviado: true, motivo: null, link };
   } catch (e) {
     const msg = (e as Error).message;
     console.error("[inviteCultura] erro:", msg);

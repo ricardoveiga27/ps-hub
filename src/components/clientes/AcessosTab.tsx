@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 type CulturaStatus = "sem_rh" | "pendente" | "expirado" | "ativo";
@@ -26,7 +34,7 @@ interface StatusResponse {
 }
 
 interface InviteResponse {
-  ps_cultura: { enviado: boolean; motivo: string | null } | null;
+  ps_cultura: { enviado: boolean; motivo: string | null; link?: string | null } | null;
   ps_index: { enviado: boolean; motivo: string | null } | null;
 }
 
@@ -51,6 +59,8 @@ interface AcessosTabProps {
 export default function AcessosTab({ clienteHubId, emailDefault, nomeCliente }: AcessosTabProps) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState(emailDefault ?? "");
+  const [culturaLink, setCulturaLink] = useState<string | null>(null);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   const { data: status, isLoading: loadingStatus, refetch } = useQuery({
     queryKey: ["product-access-status", clienteHubId],
@@ -88,6 +98,10 @@ export default function AcessosTab({ clienteHubId, emailDefault, nomeCliente }: 
       if (data.ps_index) {
         if (data.ps_index.enviado) toast.success("PS Index: convite enviado");
         else toast.error(`PS Index: ${data.ps_index.motivo ?? "falha"}`);
+      }
+      if (data.ps_cultura?.enviado && data.ps_cultura.link) {
+        setCulturaLink(data.ps_cultura.link);
+        setShowLinkDialog(true);
       }
       queryClient.invalidateQueries({ queryKey: ["product-access-status", clienteHubId] });
     },
@@ -250,6 +264,62 @@ export default function AcessosTab({ clienteHubId, emailDefault, nomeCliente }: 
           Enviar todos os convites
         </Button>
       </div>
+
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link de acesso — PS Cultura</DialogTitle>
+            <DialogDescription>
+              O email automático não está configurado. Envie este link manualmente para o RH via WhatsApp ou email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input
+              readOnly
+              value={culturaLink ?? ""}
+              onFocus={(e) => e.currentTarget.select()}
+              className="font-mono text-xs"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={async () => {
+                if (!culturaLink) return;
+                try {
+                  await navigator.clipboard.writeText(culturaLink);
+                  toast.success("Link copiado!");
+                } catch {
+                  toast.error("Não foi possível copiar. Selecione e copie manualmente.");
+                }
+              }}
+              aria-label="Copiar link"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!culturaLink) return;
+                try {
+                  await navigator.clipboard.writeText(culturaLink);
+                  toast.success("Link copiado!");
+                } catch {
+                  toast.error("Não foi possível copiar. Selecione e copie manualmente.");
+                }
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar link
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setShowLinkDialog(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
