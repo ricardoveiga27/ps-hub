@@ -98,6 +98,9 @@ export default function AcessosTab({ clienteHubId, emailDefault, nomeCliente }: 
       if (data.ps_index) {
         if (data.ps_index.enviado) toast.success("PS Index: convite enviado");
         else toast.error(`PS Index: ${data.ps_index.motivo ?? "falha"}`);
+      if (data.ps_cultura?.enviado && data.ps_cultura.link) {
+        setCulturaLink(data.ps_cultura.link);
+        setShowLinkDialog(true);
       }
       queryClient.invalidateQueries({ queryKey: ["product-access-status", clienteHubId] });
     },
