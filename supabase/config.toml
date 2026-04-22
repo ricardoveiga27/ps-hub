@@ -1,1 +1,4 @@
 project_id = "ixitjycjcgcfxwqduuit"
+
+[functions.get-empresa-funcionarios]
+verify_jwt = false
