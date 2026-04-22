@@ -412,9 +412,22 @@ export function ImportFuncionariosCsvDialog({ open, onOpenChange, defaultCliente
 
               {errorCount > 0 && (
                 <ScrollArea className="h-48 rounded border border-white/10 bg-white/5 p-3">
-                  <ul className="space-y-1 text-sm text-red-300">
-                    {parseResult.errors.map((e, i) => (
-                      <li key={i}>Linha {e.line}: {e.message}</li>
+                  <ul className="space-y-1.5">
+                    {parseResult.errors.map((err, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <Badge className="bg-red-500/20 text-red-300 shrink-0">
+                          Linha {err.linha}
+                        </Badge>
+                        <span className="text-white/80">
+                          <span className="font-medium">{err.nome}</span>
+                          <span className="text-white/50"> — </span>
+                          <span className="text-white/70">{err.campo}:</span>{" "}
+                          <span className="text-red-300">{err.motivo}</span>
+                          {err.valorInvalido && (
+                            <span className="text-white/60"> "{err.valorInvalido}"</span>
+                          )}
+                        </span>
+                      </li>
                     ))}
                   </ul>
                 </ScrollArea>
