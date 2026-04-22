@@ -1,74 +1,61 @@
 
 
-## Adicionar importação CSV de funcionários
+## Melhorar feedback de erros no ImportFuncionariosCsvDialog
 
-### 1. Novo componente — `src/components/funcionarios/ImportFuncionariosCsvDialog.tsx`
+Atualizar `src/components/funcionarios/ImportFuncionariosCsvDialog.tsx` para que cada erro identifique o funcionário e o campo problemático.
 
-Dialog modal com:
+### 1. Tipo de erro
+Substituir a estrutura atual `{ line: number; message: string }` por:
+```ts
+interface RowError {
+  linha: number;
+  nome: string;          // "(sem nome)" quando vazio
+  campo: string;         // "Nome" | "CPF" | "Email" | "Data de admissão"
+  motivo: string;        // "obrigatório" | "inválido" | "duplicado no arquivo" | "formato inválido"
+  valorInvalido?: string;
+}
+```
+Atualizar `ParseResult.errors` para `RowError[]`.
 
-**Header**
-- Título: "Importar Funcionários via CSV"
-- Descrição: "Importe funcionários em massa para o cliente selecionado."
+### 2. Atualizar `parseCsv()` (validações por linha)
+Manter toda a lógica de parse (split, header mapping, etc.). Trocar apenas os `result.errors.push(...)` para o novo formato:
 
-**Conteúdo (em ordem)**
-1. **Select de cliente** (obrigatório) — usa `useClientes({ status: "ativo" })`, ordenado por `razao_social`, label "Cliente *".
-2. **Botão "Baixar Modelo CSV"** (`variant="outline"`, ícone `Download`) — gera blob com BOM UTF-8 (`\uFEFF`), separador `;`, header e 3 linhas de exemplo, nome `modelo_funcionarios.csv`.
-3. **Drop zone** com borda `dashed border-white/20`, ícone `Upload` centralizado, texto "Clique para selecionar ou arraste o arquivo CSV", `accept=".csv,.txt"`. Suporta drag-and-drop (`onDrop`/`onDragOver`).
-4. **Preview** após parse:
-   - Badge verde: "{N} funcionários válidos"
-   - Badge vermelha (se >0): "{N} erros"
-   - `ScrollArea` h-48 listando "Linha X: motivo"
-   - `Alert` verde "Pronto para importar" quando 0 erros e ≥1 válido
+| Situação | Objeto gerado |
+|---|---|
+| Nome vazio | `{ linha, nome: "(sem nome)", campo: "Nome", motivo: "obrigatório" }` |
+| CPF inválido | `{ linha, nome, campo: "CPF", motivo: "inválido", valorInvalido: cpfRaw }` |
+| CPF duplicado | `{ linha, nome, campo: "CPF", motivo: "duplicado no arquivo", valorInvalido: cpfRaw }` |
+| Email inválido | `{ linha, nome, campo: "Email", motivo: "formato inválido", valorInvalido: email }` |
+| Data inválida | `{ linha, nome, campo: "Data de admissão", motivo: "formato inválido", valorInvalido: dataRaw }` |
 
-**Footer**
-- "Cancelar" + "Importar {N} funcionários" (desabilitado sem cliente, sem válidos, ou enquanto `isPending`).
+`nome` usa o valor da coluna `nome` da linha; quando ausente, usa `"(sem nome)"`.
 
-**Parse CSV** (helper inline `parseCsv`)
-- Split por `\n`/`\r\n`, primeira linha = header, separador `;`.
-- Normalizar header (lowercase + trim) e mapear índices:
-  - `nome` → nome
-  - `cpf` → cpf
-  - `telefone|celular|whatsapp` → telefone
-  - `email` → email
-  - `cargo` → cargo
-  - `setor` → setor
-  - `data_admissao|admissao|data_de_admissao` → data_admissao
-- Linhas totalmente vazias → ignoradas.
+### 3. Renderização no `ScrollArea`
+Substituir o `<li>` atual por um item visual com badge vermelho:
+```tsx
+<li key={i} className="flex items-start gap-2 text-sm">
+  <Badge className="bg-red-500/20 text-red-300 shrink-0">
+    Linha {err.linha}
+  </Badge>
+  <span className="text-white/80">
+    <span className="font-medium">{err.nome}</span>
+    <span className="text-white/50"> — </span>
+    <span className="text-white/70">{err.campo}:</span>{" "}
+    <span className="text-red-300">{err.motivo}</span>
+    {err.valorInvalido && (
+      <span className="text-white/60"> "{err.valorInvalido}"</span>
+    )}
+  </span>
+</li>
+```
+Manter `ScrollArea h-48`, borda e padding atuais.
 
-**Validações por linha** (acumular em `errors[]` com índice 1-based+1 para refletir linha do arquivo)
-- `nome` vazio → "nome obrigatório"
-- CPF preenchido: validar dígitos verificadores (algoritmo padrão BR, mesma lógica de `ClienteForm`/`FuncionarioForm`).
-- CPF duplicado dentro do arquivo → "CPF duplicado no arquivo"
-- Email preenchido + regex inválida → "email inválido"
-- Data preenchida: aceita `DD/MM/AAAA` ou `AAAA-MM-DD`; converte para ISO. Inválida → "data_admissao inválida"
-- Telefone: remover não-dígitos antes de salvar.
+### 4. Não alterar
+- Parse de CSV (split, headers, datas, máscaras).
+- Lógica de importação (`useMutation`, payload, invalidations).
+- Select de cliente, template, drop zone, footer, botões.
+- Nenhum outro arquivo.
 
-**Importação**
-- `useMutation`: `supabase.from('crm_funcionarios').insert(rows.map(r => ({ cliente_id, nome, cpf: r.cpf||null, telefone: r.telefone||null, email: r.email||null, cargo: r.cargo||null, setor: r.setor||null, data_admissao: r.data_admissao||null, status: 'ativo', origem: 'importacao' })))`.
-- Sem `onConflict` (não há unique constraint em `cpf` no schema atual — checar duplicidade só dentro do arquivo).
-- Sucesso: `toast.success("{N} funcionários importados com sucesso")`, `qc.invalidateQueries(["funcionarios"])` e `["funcionarios-cliente"]`, fecha dialog, limpa estado.
-- Erro: `toast.error(error.message)`.
-
-### 2. Atualizar `src/components/funcionarios/FuncionariosList.tsx`
-
-- Importar `ImportFuncionariosCsvDialog` e ícone `Upload` do lucide.
-- Adicionar `const [importOpen, setImportOpen] = useState(false);`
-- Substituir o botão atual "Importar do PS Index" (que dispara `toast.info`) por:
-  ```tsx
-  <Button variant="outline" onClick={() => setImportOpen(true)}
-    className="border-white/20 text-white/80 hover:bg-white/10 hover:text-white">
-    <Upload className="h-4 w-4 mr-2" /> Importar CSV
-  </Button>
-  ```
-- Renderizar `<ImportFuncionariosCsvDialog open={importOpen} onOpenChange={setImportOpen} />` ao lado dos demais modais.
-
-### 3. Segurança / RLS
-Sem mudanças. A policy `operadores_gerenciam_funcionarios` (admin/operador) já permite o INSERT em massa. Demais usuários verão erro do Supabase ao importar.
-
-### Arquivos
-- **Criar**: `src/components/funcionarios/ImportFuncionariosCsvDialog.tsx`
-- **Alterar**: `src/components/funcionarios/FuncionariosList.tsx`
-
-### Não será alterado
-- `useFuncionarios.ts`, demais páginas/componentes, autenticação, schema do banco.
+### Arquivo modificado
+- `src/components/funcionarios/ImportFuncionariosCsvDialog.tsx`
 
