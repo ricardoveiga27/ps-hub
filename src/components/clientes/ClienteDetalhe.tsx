@@ -435,6 +435,14 @@ export default function ClienteDetalhePage() {
         lockedClienteId={id}
       />
 
+      <FuncionarioForm
+        open={funcionarioFormOpen}
+        onOpenChange={setFuncionarioFormOpen}
+        onSubmit={handleCreateFuncionario}
+        loading={createFuncionarioMutation.isPending}
+        lockedClienteId={id}
+      />
+
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent className="bg-[hsl(var(--ps-bg-dark))] border-white/10">
           <AlertDialogHeader>
