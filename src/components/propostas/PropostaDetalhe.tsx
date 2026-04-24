@@ -281,34 +281,46 @@ export default function PropostaDetalheComponent({ id }: Props) {
           </p>
         </div>
         <div className="flex gap-2">
-          {canGenerateLink && (
-            <Button variant="outline" onClick={() => setLinkModalOpen(true)} className="border-white/10 text-white hover:bg-white/5">
-              <Link2 className="h-4 w-4 mr-2" /> Gerar Link
+          {proposta.status === "aceita" ? (
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(true)}
+              className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir
             </Button>
-          )}
-          {["rascunho", "enviada"].includes(proposta.status) && (
-            <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          {proposta.status === "rascunho" && (
+          ) : (
             <>
-              <Button variant="outline" onClick={handleEnviar} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-                <Send className="h-4 w-4 mr-2" /> Enviar
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => setDeleteOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-          {proposta.status === "enviada" && (
-            <>
-              <Button variant="outline" onClick={() => setAceitarOpen(true)} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
-                <Check className="h-4 w-4 mr-2" /> Aceitar
-              </Button>
-              <Button variant="outline" onClick={() => setRecusaOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
-                <X className="h-4 w-4 mr-2" /> Recusar
-              </Button>
+              {canGenerateLink && (
+                <Button variant="outline" onClick={() => setLinkModalOpen(true)} className="border-white/10 text-white hover:bg-white/5">
+                  <Link2 className="h-4 w-4 mr-2" /> Gerar Link
+                </Button>
+              )}
+              {["rascunho", "enviada"].includes(proposta.status) && (
+                <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              {proposta.status === "rascunho" && (
+                <>
+                  <Button variant="outline" onClick={handleEnviar} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
+                    <Send className="h-4 w-4 mr-2" /> Enviar
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setDeleteOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              {proposta.status === "enviada" && (
+                <>
+                  <Button variant="outline" onClick={() => setAceitarOpen(true)} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                    <Check className="h-4 w-4 mr-2" /> Aceitar
+                  </Button>
+                  <Button variant="outline" onClick={() => setRecusaOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                    <X className="h-4 w-4 mr-2" /> Recusar
+                  </Button>
+                </>
+              )}
             </>
           )}
         </div>
