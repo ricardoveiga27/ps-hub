@@ -146,6 +146,9 @@ export default function PropostaPublica() {
       // Dispatch custom event for compatibility
       window.dispatchEvent(new CustomEvent("aceite_proposta", { detail: { nome, cpf, cargo } }));
 
+      // Open celebration modal
+      setAccepted({ nome, dataISO: new Date().toISOString() });
+
       // Replace acceptance section with confirmation
       const aceiteSection = container.querySelector("#aceite-section") ||
         btn.closest("section") || btn.closest("div[style]") || btn.parentElement?.parentElement;
