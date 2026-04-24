@@ -75,9 +75,11 @@ export default function PropostasList() {
     );
   }
 
-  function handleDelete() {
+  const propostaToDelete = propostas?.find((p) => p.id === deleteId) || null;
+
+  function handleDelete(motivo: string) {
     if (!deleteId) return;
-    deleteMutation.mutate(deleteId, {
+    deleteMutation.mutate({ id: deleteId, motivo }, {
       onSuccess: () => {
         toast.success("Proposta excluída");
         setDeleteId(null);
