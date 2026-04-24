@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Edit, Trash2, Send, Check, X, FileText, Link2, Copy, Ban } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Send, Check, X, FileText, Link2, Copy, Ban, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,22 @@ import { usePropostaLinks, useUpdatePropostaLink } from "@/hooks/usePropostaLink
 import { supabase } from "@/integrations/supabase/client";
 import PropostaForm, { type PropostaFormValues, DESCONTO_PCT } from "./PropostaForm";
 import GerarLinkModal from "./GerarLinkModal";
+import DeletePropostaDialog from "./DeletePropostaDialog";
+
+function maskCpf(cpf: string | null | undefined) {
+  if (!cpf) return "—";
+  const d = cpf.replace(/\D/g, "");
+  if (d.length !== 11) return cpf;
+  return `${d.slice(0, 3)}.***.***-${d.slice(9)}`;
+}
+
+function formatDateTime(d: string | null | undefined) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
 
 const STATUS_BADGE: Record<string, string> = {
   rascunho: "bg-white/10 text-white/60",
