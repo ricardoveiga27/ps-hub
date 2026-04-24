@@ -1,69 +1,57 @@
 
 
-## Exibir magic link do PS Cultura após envio do convite
+## Causa raiz
 
-A Edge Function `invite-rh` do PS Cultura retorna `{ success, link }` (e-mail automático não configurado). Hoje o link é descartado. Vou propagá-lo até a UI e exibi-lo num dialog copiável.
+A página pública `/proposta/:token` chama `supabase.rpc("aceitar_proposta_link", ...)` como cliente **anônimo**. A função RPC é `SECURITY DEFINER` e tem permissão `EXECUTE` para `anon`, certo. Porém ao executar o `UPDATE` em `crm_proposta_links`, dispara o trigger **`crm_proposta_links_block_aceite_edit`** → função `prevent_aceite_tamper()`, que só libera se:
 
-### 1. Edge Function — `supabase/functions/send-product-invite/index.ts`
+```sql
+v_role = 'service_role' OR session_user = 'postgres'
+```
 
-- Atualizar `interface InviteResult`:
-  ```ts
-  interface InviteResult {
-    enviado: boolean;
-    motivo: string | null;
-    link?: string | null;
-  }
-  ```
-- Em `inviteCultura`, após `res.ok`, parsear o body com segurança e propagar `link`:
-  ```ts
-  let link: string | null = null;
-  try {
-    const parsed = JSON.parse(text);
-    link = typeof parsed?.link === "string" ? parsed.link : null;
-  } catch { /* body não-JSON, segue sem link */ }
-  return { enviado: true, motivo: null, link };
-  ```
-  (mantém `text` já lido por `await res.text()`; não há segunda leitura do body).
-- `inviteIndex` permanece inalterada (sem `link`).
-- Inicializações de `result` e tipos agregados continuam compatíveis (campo `link` opcional).
+`auth.role()` dentro de uma função `SECURITY DEFINER` ainda retorna o **role do chamador** (`anon`), e `session_user` em chamadas via PostgREST é `authenticator`, não `postgres`. Resultado: o trigger sempre dispara e a função joga a exceção `Campos de aceite só podem ser alterados via função aceitar_proposta_link` — a própria função que está rodando. Por isso o aceite "dá erro".
 
-### 2. Frontend — `src/components/clientes/AcessosTab.tsx`
+A intenção do trigger é boa (impedir UPDATE direto via REST por usuários autenticados), mas a heurística está errada: ele bloqueia inclusive a função autorizada quando chamada por anon.
 
-- Atualizar `interface InviteResponse`:
-  ```ts
-  interface InviteResponse {
-    ps_cultura: { enviado: boolean; motivo: string | null; link?: string | null } | null;
-    ps_index: { enviado: boolean; motivo: string | null } | null;
-  }
-  ```
-- Adicionar state:
-  ```ts
-  const [culturaLink, setCulturaLink] = useState<string | null>(null);
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  ```
-- No `onSuccess` da `inviteMutation`, após os toasts existentes:
-  ```ts
-  if (data.ps_cultura?.enviado && data.ps_cultura.link) {
-    setCulturaLink(data.ps_cultura.link);
-    setShowLinkDialog(true);
-  }
-  ```
-- Adicionar `<Dialog>` (shadcn `@/components/ui/dialog`) controlado por `showLinkDialog` ao final do componente, depois do bloco "Enviar todos os convites":
-  - **Título**: "Link de acesso — PS Cultura"
-  - **Descrição**: "O email automático não está configurado. Envie este link manualmente para o RH via WhatsApp ou email."
-  - **Input readonly** com `value={culturaLink ?? ""}`, selectable.
-  - Botão **"Copiar link"**: `navigator.clipboard.writeText(culturaLink!)` → `toast.success("Link copiado!")`. Fallback `try/catch` com `toast.error` caso a Clipboard API falhe.
-  - Botão **"Fechar"** que fecha o dialog (não limpa `culturaLink` para evitar piscada durante a animação).
-- Imports adicionais: `Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter` de `@/components/ui/dialog`; `Copy` de `lucide-react`.
+## Correção
 
-### 3. Não será alterado
+Sinalizar dentro da função `aceitar_proposta_link` que o UPDATE foi feito por ela, e o trigger detecta esse sinal usando uma GUC de sessão.
 
-- Action `status` da Edge Function e queries de status no frontend.
-- Cards PS Cultura/PS Index, badges, botões existentes e botão "Enviar todos os convites".
-- `inviteIndex` e qualquer outro arquivo do projeto.
+### Migration (1 arquivo)
 
-### Arquivos
+1. **Atualizar `aceitar_proposta_link`** para setar uma GUC local antes do UPDATE:
 
-- **Editar**: `supabase/functions/send-product-invite/index.ts` (tipo `InviteResult` + retorno de `inviteCultura`).
-- **Editar**: `src/components/clientes/AcessosTab.tsx` (state, dialog, parsing do `link`).
+   ```sql
+   PERFORM set_config('app.allow_aceite_update', 'on', true);  -- true = LOCAL à transação
+   UPDATE public.crm_proposta_links SET ... ;
+   ```
+
+2. **Atualizar `prevent_aceite_tamper`** para liberar quando a GUC estiver setada:
+
+   ```sql
+   IF current_setting('app.allow_aceite_update', true) = 'on' THEN
+     RETURN NEW;
+   END IF;
+   -- ... mantém checagens existentes (service_role / postgres / campos imutáveis)
+   ```
+
+   `current_setting(name, true)` retorna `NULL` quando a GUC não existe (não levanta erro). Como `set_config(..., true)` é local à transação, atacantes que façam UPDATE direto via REST não conseguem ativar a flag — apenas a função `SECURITY DEFINER` consegue.
+
+3. Manter as checagens originais para `service_role`/`postgres` como fallback (não muda nada do comportamento já existente).
+
+### Não alterar
+
+- RLS de `crm_proposta_links` (continua exigindo `has_perfil(...)` para acesso direto via REST).
+- `get_proposta_link_by_token` (continua funcionando para anon, é SECURITY DEFINER e só lê).
+- Frontend `src/pages/PropostaPublica.tsx` — a chamada já está correta; nenhuma mudança necessária.
+- Outros triggers da tabela.
+
+### Validação após o fix
+
+- Chamar `aceitar_proposta_link` como `anon` com um token válido → deve gravar `aceite_nome/cpf/cargo/aceite_em/status='aceita'` e retornar a row.
+- Tentativa de UPDATE direto na tabela como `authenticated` sem perfil comercial → continua bloqueada por RLS.
+- Tentativa de `UPDATE` direto como usuário comercial → ainda bloqueada pelo trigger (a GUC não está setada), preservando a regra "aceite só via função".
+
+### Arquivo
+
+- **Criar**: nova migration SQL aplicando as duas substituições `CREATE OR REPLACE FUNCTION` acima.
 
