@@ -11,12 +11,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { usePropostas, useCreateProposta, useDeleteProposta } from "@/hooks/usePropostas";
 import PropostaForm, { type PropostaFormValues, DESCONTO_PCT } from "./PropostaForm";
+import DeletePropostaDialog from "./DeletePropostaDialog";
 
 const STATUS_BADGE: Record<string, string> = {
   rascunho: "bg-white/10 text-white/60",
@@ -78,9 +75,11 @@ export default function PropostasList() {
     );
   }
 
-  function handleDelete() {
+  const propostaToDelete = propostas?.find((p) => p.id === deleteId) || null;
+
+  function handleDelete(motivo: string) {
     if (!deleteId) return;
-    deleteMutation.mutate(deleteId, {
+    deleteMutation.mutate({ id: deleteId, motivo }, {
       onSuccess: () => {
         toast.success("Proposta excluída");
         setDeleteId(null);
@@ -189,20 +188,14 @@ export default function PropostasList() {
         loading={createMutation.isPending}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir proposta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/50">
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white hover:bg-white/5">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletePropostaDialog
+        open={!!deleteId}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+        numeroProposta={propostaToDelete?.numero_proposta || "(sem número)"}
+        clienteNome={propostaToDelete?.crm_clientes?.razao_social}
+        loading={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

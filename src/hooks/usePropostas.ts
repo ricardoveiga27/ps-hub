@@ -90,10 +90,55 @@ export function useUpdateProposta() {
   });
 }
 
+interface DeletePropostaInput {
+  id: string;
+  motivo: string;
+}
+
 export function useDeleteProposta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (input: DeletePropostaInput | string) => {
+      // Compat: aceita string (sem motivo, fluxo antigo) ou objeto.
+      const id = typeof input === "string" ? input : input.id;
+      const motivo = typeof input === "string" ? "(sem motivo informado)" : input.motivo;
+
+      // 1. Snapshot completo (com cliente)
+      const { data: snapshot, error: snapErr } = await supabase
+        .from("crm_propostas")
+        .select("*, crm_clientes(razao_social, cnpj)")
+        .eq("id", id)
+        .maybeSingle();
+      if (snapErr) throw snapErr;
+      if (!snapshot) throw new Error("Proposta não encontrada");
+
+      // 2. Quem está excluindo
+      const { data: { user } } = await supabase.auth.getUser();
+      let nome: string | null = null;
+      if (user) {
+        const { data: u } = await supabase
+          .from("crm_usuarios").select("nome").eq("id", user.id).maybeSingle();
+        nome = u?.nome ?? user.email ?? null;
+      }
+
+      // 3. Auditoria
+      const { error: audErr } = await supabase.from("crm_propostas_excluidas").insert({
+        proposta_id: snapshot.id,
+        numero_proposta: snapshot.numero_proposta,
+        cliente_id: snapshot.cliente_id,
+        motivo,
+        excluida_por: user?.id ?? null,
+        excluida_por_nome: nome,
+        snapshot,
+      });
+      if (audErr) throw audErr;
+
+      // 4. Remove links dependentes (sem FK declarada)
+      const { error: linksErr } = await supabase
+        .from("crm_proposta_links").delete().eq("proposta_id", id);
+      if (linksErr) throw linksErr;
+
+      // 5. Remove a proposta
       const { error } = await supabase.from("crm_propostas").delete().eq("id", id);
       if (error) throw error;
     },

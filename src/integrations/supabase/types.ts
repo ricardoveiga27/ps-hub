@@ -825,6 +825,42 @@ export type Database = {
           },
         ]
       }
+      crm_propostas_excluidas: {
+        Row: {
+          cliente_id: string | null
+          excluida_em: string
+          excluida_por: string | null
+          excluida_por_nome: string | null
+          id: string
+          motivo: string
+          numero_proposta: string | null
+          proposta_id: string
+          snapshot: Json
+        }
+        Insert: {
+          cliente_id?: string | null
+          excluida_em?: string
+          excluida_por?: string | null
+          excluida_por_nome?: string | null
+          id?: string
+          motivo: string
+          numero_proposta?: string | null
+          proposta_id: string
+          snapshot: Json
+        }
+        Update: {
+          cliente_id?: string | null
+          excluida_em?: string
+          excluida_por?: string | null
+          excluida_por_nome?: string | null
+          id?: string
+          motivo?: string
+          numero_proposta?: string | null
+          proposta_id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
       crm_reajustes: {
         Row: {
           aplicado_em: string

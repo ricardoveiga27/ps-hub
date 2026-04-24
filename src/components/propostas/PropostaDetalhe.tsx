@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Edit, Trash2, Send, Check, X, FileText, Link2, Copy, Ban } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Send, Check, X, FileText, Link2, Copy, Ban, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,22 @@ import { usePropostaLinks, useUpdatePropostaLink } from "@/hooks/usePropostaLink
 import { supabase } from "@/integrations/supabase/client";
 import PropostaForm, { type PropostaFormValues, DESCONTO_PCT } from "./PropostaForm";
 import GerarLinkModal from "./GerarLinkModal";
+import DeletePropostaDialog from "./DeletePropostaDialog";
+
+function maskCpf(cpf: string | null | undefined) {
+  if (!cpf) return "—";
+  const d = cpf.replace(/\D/g, "");
+  if (d.length !== 11) return cpf;
+  return `${d.slice(0, 3)}.***.***-${d.slice(9)}`;
+}
+
+function formatDateTime(d: string | null | undefined) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
 
 const STATUS_BADGE: Record<string, string> = {
   rascunho: "bg-white/10 text-white/60",
@@ -128,8 +144,8 @@ export default function PropostaDetalheComponent({ id }: Props) {
     );
   }
 
-  function handleDelete() {
-    deleteMutation.mutate(id, {
+  function handleDelete(motivo: string) {
+    deleteMutation.mutate({ id, motivo }, {
       onSuccess: () => { toast.success("Proposta excluída"); navigate("/app/propostas"); },
       onError: (e) => toast.error("Erro: " + e.message),
     });
@@ -265,34 +281,46 @@ export default function PropostaDetalheComponent({ id }: Props) {
           </p>
         </div>
         <div className="flex gap-2">
-          {canGenerateLink && (
-            <Button variant="outline" onClick={() => setLinkModalOpen(true)} className="border-white/10 text-white hover:bg-white/5">
-              <Link2 className="h-4 w-4 mr-2" /> Gerar Link
+          {proposta.status === "aceita" ? (
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(true)}
+              className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir
             </Button>
-          )}
-          {["rascunho", "enviada"].includes(proposta.status) && (
-            <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          {proposta.status === "rascunho" && (
+          ) : (
             <>
-              <Button variant="outline" onClick={handleEnviar} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-                <Send className="h-4 w-4 mr-2" /> Enviar
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => setDeleteOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-          {proposta.status === "enviada" && (
-            <>
-              <Button variant="outline" onClick={() => setAceitarOpen(true)} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
-                <Check className="h-4 w-4 mr-2" /> Aceitar
-              </Button>
-              <Button variant="outline" onClick={() => setRecusaOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
-                <X className="h-4 w-4 mr-2" /> Recusar
-              </Button>
+              {canGenerateLink && (
+                <Button variant="outline" onClick={() => setLinkModalOpen(true)} className="border-white/10 text-white hover:bg-white/5">
+                  <Link2 className="h-4 w-4 mr-2" /> Gerar Link
+                </Button>
+              )}
+              {["rascunho", "enviada"].includes(proposta.status) && (
+                <Button variant="outline" size="icon" onClick={() => setEditOpen(true)} className="border-white/10 text-white hover:bg-white/5">
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              {proposta.status === "rascunho" && (
+                <>
+                  <Button variant="outline" onClick={handleEnviar} className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
+                    <Send className="h-4 w-4 mr-2" /> Enviar
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setDeleteOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              {proposta.status === "enviada" && (
+                <>
+                  <Button variant="outline" onClick={() => setAceitarOpen(true)} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                    <Check className="h-4 w-4 mr-2" /> Aceitar
+                  </Button>
+                  <Button variant="outline" onClick={() => setRecusaOpen(true)} className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                    <X className="h-4 w-4 mr-2" /> Recusar
+                  </Button>
+                </>
+              )}
             </>
           )}
         </div>
@@ -350,15 +378,45 @@ export default function PropostaDetalheComponent({ id }: Props) {
         </Card>
       )}
 
-      {proposta.status === "aceita" && (
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
-          <CardContent className="flex items-center gap-3 py-4">
-            <FileText className="h-5 w-5 text-emerald-400" />
-            <span className="text-emerald-300 text-sm">Contrato gerado automaticamente a partir desta proposta.</span>
-            <Button variant="link" className="text-emerald-400 ml-auto" onClick={() => navigate("/app/contratos")}>Ver contratos →</Button>
-          </CardContent>
-        </Card>
-      )}
+      {proposta.status === "aceita" && (() => {
+        const linkAceito = links?.find((l) => l.status === "aceita");
+        return (
+          <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-emerald-300 text-base flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Proposta aceita
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {linkAceito ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <Row label="Aceito por" value={linkAceito.aceite_nome || "—"} />
+                  <Row label="CPF" value={maskCpf(linkAceito.aceite_cpf)} />
+                  <Row label="Cargo" value={linkAceito.aceite_cargo || "—"} />
+                  <Row label="Data/hora do aceite" value={formatDateTime(linkAceito.aceite_em)} />
+                  {linkAceito.ip_aceite && (
+                    <div className="md:col-span-2">
+                      <Row label="IP de origem" value={linkAceito.ip_aceite} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-white/60 text-sm">
+                  Aceita em {formatDateTime(proposta.aceita_em)} (sem registro detalhado de signatário).
+                </p>
+              )}
+              <div className="flex items-center gap-3 pt-3 border-t border-emerald-500/20">
+                <FileText className="h-4 w-4 text-emerald-400" />
+                <span className="text-emerald-300/90 text-sm">Contrato e assinatura criados automaticamente.</span>
+                <Button variant="link" className="text-emerald-400 ml-auto h-auto p-0" onClick={() => navigate("/app/contratos")}>
+                  Ver contratos →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Links gerados */}
       {links && links.length > 0 && (
@@ -413,18 +471,14 @@ export default function PropostaDetalheComponent({ id }: Props) {
         pacote={pacote}
       />
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir proposta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/50">Esta ação não pode ser desfeita.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white hover:bg-white/5">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletePropostaDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        numeroProposta={proposta.numero_proposta || "(sem número)"}
+        clienteNome={proposta.crm_clientes?.razao_social}
+        loading={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
 
       <AlertDialog open={aceitarOpen} onOpenChange={setAceitarOpen}>
         <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
