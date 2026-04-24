@@ -471,18 +471,14 @@ export default function PropostaDetalheComponent({ id }: Props) {
         pacote={pacote}
       />
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir proposta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/50">Esta ação não pode ser desfeita.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white hover:bg-white/5">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletePropostaDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        numeroProposta={proposta.numero_proposta || "(sem número)"}
+        clienteNome={proposta.crm_clientes?.razao_social}
+        loading={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
 
       <AlertDialog open={aceitarOpen} onOpenChange={setAceitarOpen}>
         <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
