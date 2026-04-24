@@ -188,20 +188,14 @@ export default function PropostasList() {
         loading={createMutation.isPending}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent className="bg-[#1a1a2e] border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir proposta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/50">
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white hover:bg-white/5">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletePropostaDialog
+        open={!!deleteId}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+        numeroProposta={propostaToDelete?.numero_proposta || "(sem número)"}
+        clienteNome={propostaToDelete?.crm_clientes?.razao_social}
+        loading={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
