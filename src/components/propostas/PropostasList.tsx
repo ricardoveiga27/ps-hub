@@ -11,12 +11,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { usePropostas, useCreateProposta, useDeleteProposta } from "@/hooks/usePropostas";
 import PropostaForm, { type PropostaFormValues, DESCONTO_PCT } from "./PropostaForm";
+import DeletePropostaDialog from "./DeletePropostaDialog";
 
 const STATUS_BADGE: Record<string, string> = {
   rascunho: "bg-white/10 text-white/60",
