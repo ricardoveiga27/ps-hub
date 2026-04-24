@@ -1,57 +1,60 @@
+## Modal de celebração ao aceitar a proposta
 
+Substituir o feedback sóbrio (cartão verde inline) por um **modal full-screen de celebração** que aparece imediatamente após o RPC `aceitar_proposta_link` retornar sucesso.
 
-## Causa raiz
+### Comportamento
 
-A página pública `/proposta/:token` chama `supabase.rpc("aceitar_proposta_link", ...)` como cliente **anônimo**. A função RPC é `SECURITY DEFINER` e tem permissão `EXECUTE` para `anon`, certo. Porém ao executar o `UPDATE` em `crm_proposta_links`, dispara o trigger **`crm_proposta_links_block_aceite_edit`** → função `prevent_aceite_tamper()`, que só libera se:
+1. Usuário preenche nome/CPF/cargo, marca o checkbox e clica "Confirmar Aceite".
+2. RPC é chamado normalmente (sem alteração).
+3. Em sucesso:
+   - State React `accepted = { nome, dataISO }` é setado → modal abre com animação.
+   - O cartão verde inline continua sendo injetado no DOM da proposta (registro permanente caso o cliente feche o modal e role a página).
+   - CustomEvent `aceite_proposta` continua sendo disparado (compatibilidade).
 
-```sql
-v_role = 'service_role' OR session_user = 'postgres'
-```
+### Conteúdo do modal
 
-`auth.role()` dentro de uma função `SECURITY DEFINER` ainda retorna o **role do chamador** (`anon`), e `session_user` em chamadas via PostgREST é `authenticator`, não `postgres`. Resultado: o trigger sempre dispara e a função joga a exceção `Campos de aceite só podem ser alterados via função aceitar_proposta_link` — a própria função que está rodando. Por isso o aceite "dá erro".
+- **Confete CSS puro** caindo do topo por ~4s (sem dependência nova; ~30 spans com `animation` aleatória de translate+rotate).
+- **Ícone grande de check** (Lucide `CheckCircle2`) com animação `scale-in` e gradiente verde/teal de fundo.
+- **Headline**: "🎉 Parabéns pela sua compra!"
+- **Subtítulo personalizado**: "Obrigado, **{nome}**! Sua adesão ao PS Hub foi confirmada."
+- **Mensagem principal**:
+  > "Em breve nossa equipe de implantação entrará em contato para dar continuidade com seu onboarding. Nos vemos do outro lado! 🚀"
+- **Cartão "Próximos passos"** com 3 itens (ícone + label):
+  1. 👋 Nossa equipe entrará em contato em até 1 dia útil
+  2. 📋 Vamos agendar uma call de kickoff do onboarding
+  3. 🚀 Implantação personalizada da sua empresa
+- **Rodapé pequeno**: "Aceite registrado em {data/hora} por {nome}."
+- **Botão "Fechar"** (o cartão inline permanece visível por baixo).
 
-A intenção do trigger é boa (impedir UPDATE direto via REST por usuários autenticados), mas a heurística está errada: ele bloqueia inclusive a função autorizada quando chamada por anon.
+### Implementação técnica (em `src/pages/PropostaPublica.tsx`)
 
-## Correção
+- Adicionar state: `const [accepted, setAccepted] = useState<{ nome: string; dataISO: string } | null>(null);`
+- No `handleAccept`, após o RPC sem erro:
+  ```ts
+  setAccepted({ nome, dataISO: new Date().toISOString() });
+  ```
+  (antes da injeção do cartão inline atual, que é mantida).
+- Renderizar o modal como JSX irmão do `<div ref={containerRef} dangerouslySetInnerHTML={...}>`:
+  - Overlay fixo `fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in`.
+  - Container do modal `bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 relative animate-scale-in`.
+  - Confete em `<div class="absolute inset-0 overflow-hidden pointer-events-none">` com spans gerados via `Array.from({length:30})`.
+- **Acessibilidade**: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, foco no botão Fechar via `useEffect`, ESC fecha.
+- **Estilos inline** (não Tailwind no body de proposta — a página pública roda fora do shell do CRM, mas Tailwind está disponível globalmente via `index.css`). Usar Tailwind normal.
+- **Confete keyframes**: adicionar bloco `<style>` local no JSX do modal com `@keyframes confetti-fall` (translateY + rotate) e cores aleatórias inline por span — evita poluir `tailwind.config.ts`/`index.css`.
+- **Responsivo**: modal vira full-width no mobile, centrado no desktop. Confete cobre a tela.
 
-Sinalizar dentro da função `aceitar_proposta_link` que o UPDATE foi feito por ela, e o trigger detecta esse sinal usando uma GUC de sessão.
+### O que NÃO muda
 
-### Migration (1 arquivo)
+- RPC `aceitar_proposta_link` (já corrigido na migration anterior).
+- Validação de CPF/checkbox/máscara.
+- Substituição do bloco do formulário pelo cartão verde inline (continua como fallback).
+- CustomEvent `aceite_proposta`.
+- Hooks de fetch, print, title.
 
-1. **Atualizar `aceitar_proposta_link`** para setar uma GUC local antes do UPDATE:
+### Fora de escopo (combinado com o usuário)
 
-   ```sql
-   PERFORM set_config('app.allow_aceite_update', 'on', true);  -- true = LOCAL à transação
-   UPDATE public.crm_proposta_links SET ... ;
-   ```
+- Envio de e-mail automático para o signatário com a mensagem de boas-vindas → deixar para uma próxima iteração.
 
-2. **Atualizar `prevent_aceite_tamper`** para liberar quando a GUC estiver setada:
+### Arquivos
 
-   ```sql
-   IF current_setting('app.allow_aceite_update', true) = 'on' THEN
-     RETURN NEW;
-   END IF;
-   -- ... mantém checagens existentes (service_role / postgres / campos imutáveis)
-   ```
-
-   `current_setting(name, true)` retorna `NULL` quando a GUC não existe (não levanta erro). Como `set_config(..., true)` é local à transação, atacantes que façam UPDATE direto via REST não conseguem ativar a flag — apenas a função `SECURITY DEFINER` consegue.
-
-3. Manter as checagens originais para `service_role`/`postgres` como fallback (não muda nada do comportamento já existente).
-
-### Não alterar
-
-- RLS de `crm_proposta_links` (continua exigindo `has_perfil(...)` para acesso direto via REST).
-- `get_proposta_link_by_token` (continua funcionando para anon, é SECURITY DEFINER e só lê).
-- Frontend `src/pages/PropostaPublica.tsx` — a chamada já está correta; nenhuma mudança necessária.
-- Outros triggers da tabela.
-
-### Validação após o fix
-
-- Chamar `aceitar_proposta_link` como `anon` com um token válido → deve gravar `aceite_nome/cpf/cargo/aceite_em/status='aceita'` e retornar a row.
-- Tentativa de UPDATE direto na tabela como `authenticated` sem perfil comercial → continua bloqueada por RLS.
-- Tentativa de `UPDATE` direto como usuário comercial → ainda bloqueada pelo trigger (a GUC não está setada), preservando a regra "aceite só via função".
-
-### Arquivo
-
-- **Criar**: nova migration SQL aplicando as duas substituições `CREATE OR REPLACE FUNCTION` acima.
-
+- **Editar**: `src/pages/PropostaPublica.tsx` (state `accepted`, modal JSX, keyframes de confete, foco/ESC).

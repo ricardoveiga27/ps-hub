@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function PropostaPublica() {
@@ -8,7 +9,20 @@ export default function PropostaPublica() {
   const [linkStatus, setLinkStatus] = useState<string | null>(null);
   const [expiraEm, setExpiraEm] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accepted, setAccepted] = useState<{ nome: string; dataISO: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Focus close + ESC to dismiss the celebration modal
+  useEffect(() => {
+    if (!accepted) return;
+    closeBtnRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccepted(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [accepted]);
 
   // Reset body background
   useEffect(() => {
