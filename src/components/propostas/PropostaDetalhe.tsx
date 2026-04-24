@@ -378,15 +378,45 @@ export default function PropostaDetalheComponent({ id }: Props) {
         </Card>
       )}
 
-      {proposta.status === "aceita" && (
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
-          <CardContent className="flex items-center gap-3 py-4">
-            <FileText className="h-5 w-5 text-emerald-400" />
-            <span className="text-emerald-300 text-sm">Contrato gerado automaticamente a partir desta proposta.</span>
-            <Button variant="link" className="text-emerald-400 ml-auto" onClick={() => navigate("/app/contratos")}>Ver contratos →</Button>
-          </CardContent>
-        </Card>
-      )}
+      {proposta.status === "aceita" && (() => {
+        const linkAceito = links?.find((l) => l.status === "aceita");
+        return (
+          <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-emerald-300 text-base flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Proposta aceita
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {linkAceito ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <Row label="Aceito por" value={linkAceito.aceite_nome || "—"} />
+                  <Row label="CPF" value={maskCpf(linkAceito.aceite_cpf)} />
+                  <Row label="Cargo" value={linkAceito.aceite_cargo || "—"} />
+                  <Row label="Data/hora do aceite" value={formatDateTime(linkAceito.aceite_em)} />
+                  {linkAceito.ip_aceite && (
+                    <div className="md:col-span-2">
+                      <Row label="IP de origem" value={linkAceito.ip_aceite} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-white/60 text-sm">
+                  Aceita em {formatDateTime(proposta.aceita_em)} (sem registro detalhado de signatário).
+                </p>
+              )}
+              <div className="flex items-center gap-3 pt-3 border-t border-emerald-500/20">
+                <FileText className="h-4 w-4 text-emerald-400" />
+                <span className="text-emerald-300/90 text-sm">Contrato e assinatura criados automaticamente.</span>
+                <Button variant="link" className="text-emerald-400 ml-auto h-auto p-0" onClick={() => navigate("/app/contratos")}>
+                  Ver contratos →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Links gerados */}
       {links && links.length > 0 && (
