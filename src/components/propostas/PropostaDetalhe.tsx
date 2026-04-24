@@ -144,8 +144,8 @@ export default function PropostaDetalheComponent({ id }: Props) {
     );
   }
 
-  function handleDelete() {
-    deleteMutation.mutate(id, {
+  function handleDelete(motivo: string) {
+    deleteMutation.mutate({ id, motivo }, {
       onSuccess: () => { toast.success("Proposta excluída"); navigate("/app/propostas"); },
       onError: (e) => toast.error("Erro: " + e.message),
     });
